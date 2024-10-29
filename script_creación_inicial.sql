@@ -1,5 +1,7 @@
 -- CREACION DEL SCHEMA --
 
+USE GD2C2024;
+
 IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'LOS_ANTI_PALA')
     EXEC('CREATE SCHEMA LOS_ANTI_PALA');
 
@@ -213,4 +215,250 @@ CREATE TABLE LOS_ANTI_PALA.Factura (
 )
 
 
+GO
 
+CREATE SEQUENCE DomicilioSeq
+
+START WITH 1
+
+INCREMENT BY 1;
+
+
+
+INSERT INTO LOS_ANTI_PALA.Domicilio (domicilio_codigo, domicilio_calle, domicilio_nro_calle, domicilio_codigo_postal, domicilio_localidad, domicilio_provincia, domicilio_piso, domicilio_depto)
+
+SELECT 
+
+    NEXT VALUE FOR DomicilioSeq,
+
+    CLI_USUARIO_DOMICILIO_CALLE,
+
+    CLI_USUARIO_DOMICILIO_NRO_CALLE,
+
+    CLI_USUARIO_DOMICILIO_CP,
+
+    CLI_USUARIO_DOMICILIO_LOCALIDAD,
+
+    CLI_USUARIO_DOMICILIO_PROVINCIA,
+
+    CLI_USUARIO_DOMICILIO_PISO,
+
+    CLI_USUARIO_DOMICILIO_DEPTO
+
+FROM [GD2C2024].[gd_esquema].[Maestra];
+
+
+
+GO
+
+CREATE SEQUENCE medioPagoseqNew3
+
+START WITH 1
+
+INCREMENT BY 1;
+
+INSERT INTO LOS_ANTI_PALA.Medio_de_pago(medio_pago_codigo,medio_pago_descripcion,medio_pago_tipo)
+
+SELECT
+
+NEXT VALUE FOR medioPagoseqNew3,
+
+		PAGO_MEDIO_PAGO,
+
+        PAGO_TIPO_MEDIO_PAGO
+
+FROM [GD2C2024].[gd_esquema].[Maestra] WHERE PAGO_MEDIO_PAGO IS NOT NULL GROUP BY PAGO_MEDIO_PAGO, PAGO_TIPO_MEDIO_PAGO;
+
+GO
+
+
+GO
+
+CREATE SEQUENCE detalleDePagoSeq
+
+START WITH 1
+
+INCREMENT BY 1;
+
+INSERT INTO LOS_ANTI_PALA.Detalle_de_pago(pago_codigo,detalle_pago_nro_tarjeta,detalle_pago_venc_tarjeta,detalle_pago_cuotas)
+
+SELECT
+
+NEXT VALUE FOR detalleDePagoSeq,
+
+		[PAGO_NRO_TARJETA]
+
+       ,[PAGO_FECHA_VENC_TARJETA]
+
+       ,[PAGO_CANT_CUOTAS]
+
+FROM [GD2C2024].[gd_esquema].[Maestra];
+
+GO
+
+
+
+GO
+
+CREATE SEQUENCE localidadAlmacenSeq1
+
+START WITH 1
+
+INCREMENT BY 1;
+
+
+
+INSERT INTO LOS_ANTI_PALA.Localidad(localidad_codigo, localidad_nombre)
+
+SELECT 
+
+NEXT VALUE FOR localidadAlmacenSeq1,
+
+				ALMACEN_Localidad
+
+FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY ALMACEN_Localidad HAVING ALMACEN_Localidad IS NOT NULL;
+
+
+
+GO
+
+
+
+GO
+
+CREATE SEQUENCE provinciaSeq
+
+START WITH 1
+
+INCREMENT BY 1;
+
+
+
+INSERT INTO LOS_ANTI_PALA.Provincia(provincia_codigo, provincia_nombre)
+
+SELECT 
+
+NEXT VALUE FOR provinciaSeq,
+
+				[ALMACEN_PROVINCIA]
+
+FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY [ALMACEN_PROVINCIA] HAVING [ALMACEN_PROVINCIA] IS NOT NULL;
+
+
+
+GO
+
+
+
+GO
+
+CREATE SEQUENCE facturaSeq
+
+START WITH 1
+
+INCREMENT BY 1;
+
+
+
+INSERT INTO LOS_ANTI_PALA.Concepto_factura(concepto_factura_codigo,concepto_factura_tipo,concepto_precio)
+
+SELECT 
+
+NEXT VALUE FOR facturaSeq,
+
+				[ALMACEN_PROVINCIA]
+
+FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY [ALMACEN_PROVINCIA] HAVING [ALMACEN_PROVINCIA] IS NOT NULL;
+
+GO
+
+
+
+GO
+
+CREATE SEQUENCE rubroSeq
+
+START WITH 1
+
+INCREMENT BY 1;
+
+
+
+INSERT INTO LOS_ANTI_PALA.Rubro(rubro_codigo,rubro_descripcion)
+
+SELECT 
+
+NEXT VALUE FOR rubroSeq,
+
+				[PRODUCTO_RUBRO_DESCRIPCION]
+
+FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY [PRODUCTO_RUBRO_DESCRIPCION] HAVING [PRODUCTO_RUBRO_DESCRIPCION] IS NOT NULL;
+
+GO
+
+
+
+GO
+
+WITH CTE AS (
+
+    SELECT 
+
+        PRODUCTO_SUB_RUBRO,
+
+        (SELECT rubro_codigo FROM LOS_ANTI_PALA.Rubro r WHERE PRODUCTO_RUBRO_DESCRIPCION = r.rubro_descripcion) AS RUBRO_FK
+
+    FROM 
+
+        [GD2C2024].[gd_esquema].[Maestra] 
+
+    WHERE 
+
+        PRODUCTO_SUB_RUBRO IS NOT NULL
+
+)
+
+
+
+INSERT INTO LOS_ANTI_PALA.Subrubro(subrubro_codigo, subrubro_descripcion, rubro_codigo)
+
+SELECT 
+
+    NEXT VALUE FOR rubroSeq,
+
+    PRODUCTO_SUB_RUBRO,
+
+    RUBRO_FK
+
+FROM 
+
+    CTE
+
+GROUP BY 
+
+    PRODUCTO_SUB_RUBRO,
+
+    RUBRO_FK;
+
+GO
+
+GO
+CREATE SEQUENCE tipoEnvioSeq
+
+START WITH 1
+
+INCREMENT BY 1;
+
+
+
+INSERT INTO LOS_ANTI_PALA.Tipo_Envio(tipo_envio_codigo,)
+
+SELECT 
+
+NEXT VALUE FOR tipoEnvioSeq,
+
+				[ENVIO_TIPO]
+
+FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY [ENVIO_TIPO] HAVING [ENVIO_TIPO] IS NOT NULL;
+
+GO
