@@ -54,18 +54,18 @@ EXEC sp_MSforeachtable "ALTER TABLE ? WITH CHECK CHECK CONSTRAINT ALL";
 
 CREATE TABLE LOS_ANTI_PALA.Usuario (
 	usuario_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
-	usuario_nombre BIGINT UNIQUE NOT NULL,
+	usuario_nombre VARCHAR(50) UNIQUE NOT NULL,
 	usuario_password VARCHAR(50) NOT NULL,
 	usuario_fecha_creacion DATE,
 )
 
 
 CREATE TABLE LOS_ANTI_PALA.Cliente (
-	usuario_codigo BIGINT IDENTITY(1,1) REFERENCES LOS_ANTI_PALA.Usuario PRIMARY KEY,
+	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Usuario PRIMARY KEY,
 	cliente_nombre NVARCHAR(50) NOT NULL,
 	cliente_apellido NVARCHAR(50) NOT NULL,
-	cliente_dni DECIMAL(18,0) CONSTRAINT unique_cliente_dni UNIQUE NOT NULL,
-	cliente_mail NVARCHAR(50) CONSTRAINT unique_cliente_email UNIQUE NOT NULL,
+	cliente_dni DECIMAL(18,0) CONSTRAINT unique_cliente_dni NOT NULL,
+	cliente_mail NVARCHAR(50) NOT NULL,
 	cliente_fecha_nac DATE NOT NULL,
 )
 
@@ -150,7 +150,7 @@ CREATE TABLE LOS_ANTI_PALA.Marca (
 )
 
 CREATE TABLE LOS_ANTI_PALA.Modelo (
-	modelo_codigo DECIMAL(18,0) IDENTITY(1,1) PRIMARY KEY,
+	modelo_codigo DECIMAL(18,0) PRIMARY KEY,
 	modelo_descripcion NVARCHAR(50) NOT NULL,
 )
 
@@ -330,7 +330,6 @@ FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY FACTURA_DET_TIPO HAVING FACTURA_
 GO
 
 
-
 GO
 
 INSERT INTO LOS_ANTI_PALA.Rubro(rubro_descripcion)
@@ -389,10 +388,156 @@ GO
 GO
 
 INSERT INTO LOS_ANTI_PALA.Tipo_Envio(tipo_envio_descripcion)
-
 SELECT 
-				[ENVIO_TIPO]
+    [ENVIO_TIPO]
+FROM 
+    [GD2C2024].[gd_esquema].[Maestra] 
+GROUP BY 
+    [ENVIO_TIPO] 
+HAVING 
+    [ENVIO_TIPO] IS NOT NULL;
 
-FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY [ENVIO_TIPO] HAVING [ENVIO_TIPO] IS NOT NULL;
+
+
+
 
 GO
+
+DECLARE @TempUsuario TABLE (
+    usuario_codigo BIGINT,
+    usuario_nombre NVARCHAR(255)
+);
+
+WITH UsuariosConNumeracion AS (
+    SELECT 
+        m.CLI_USUARIO_NOMBRE,
+        m.CLI_USUARIO_PASS,
+        m.CLI_USUARIO_FECHA_CREACION,
+        ROW_NUMBER() OVER (PARTITION BY m.CLI_USUARIO_NOMBRE ORDER BY m.CLI_USUARIO_NOMBRE) AS NombreDuplicado
+    FROM 
+        [GD2C2024].[gd_esquema].[Maestra] m
+    WHERE 
+        m.CLI_USUARIO_NOMBRE IS NOT NULL
+)
+
+INSERT INTO LOS_ANTI_PALA.Usuario (
+    usuario_nombre,
+    usuario_password,
+    usuario_fecha_creacion
+)
+OUTPUT inserted.usuario_codigo, inserted.usuario_nombre INTO @TempUsuario -- Capturar el usuario_codigo y usuario_nombre generados
+SELECT
+    CASE 
+        WHEN NombreDuplicado = 1 THEN u.CLI_USUARIO_NOMBRE -- Si no es duplicado, conservar el nombre original
+        ELSE CONCAT(u.CLI_USUARIO_NOMBRE, '_', CAST(NombreDuplicado AS NVARCHAR(10))) -- Si es duplicado, agregar un sufijo numérico
+    END AS usuario_nombre,
+    u.CLI_USUARIO_PASS,
+    u.CLI_USUARIO_FECHA_CREACION
+FROM 
+    UsuariosConNumeracion u;
+
+DECLARE @TempClienteNumeracion TABLE (
+    CLI_USUARIO_NOMBRE NVARCHAR(255),
+    CLIENTE_NOMBRE NVARCHAR(255),
+    CLIENTE_APELLIDO NVARCHAR(255),
+    CLIENTE_DNI NVARCHAR(50),
+    CLIENTE_MAIL NVARCHAR(255),
+    CLIENTE_FECHA_NAC DATE,
+    NombreDuplicado INT
+);
+
+INSERT INTO @TempClienteNumeracion
+SELECT 
+    m.CLI_USUARIO_NOMBRE,
+    m.CLIENTE_NOMBRE,
+    m.CLIENTE_APELLIDO,
+    m.CLIENTE_DNI,
+    m.CLIENTE_MAIL,
+    m.CLIENTE_FECHA_NAC,
+    ROW_NUMBER() OVER (PARTITION BY m.CLI_USUARIO_NOMBRE ORDER BY m.CLI_USUARIO_NOMBRE) AS NombreDuplicado
+FROM 
+    [GD2C2024].[gd_esquema].[Maestra] m
+WHERE 
+    m.CLI_USUARIO_NOMBRE IS NOT NULL;
+
+-- Insertar los datos en la tabla Cliente usando los códigos de usuario recién creados
+INSERT INTO LOS_ANTI_PALA.Cliente (
+    usuario_codigo,
+    cliente_nombre,
+    cliente_apellido,
+    cliente_dni,
+    cliente_mail,
+    cliente_fecha_nac
+)
+SELECT 
+    tu.usuario_codigo, -- Usamos el código recién creado de la tabla temporal
+    tc.CLIENTE_NOMBRE,
+    tc.CLIENTE_APELLIDO,
+    tc.CLIENTE_DNI,
+    tc.CLIENTE_MAIL,
+    tc.CLIENTE_FECHA_NAC
+FROM 
+    @TempClienteNumeracion tc
+    JOIN @TempUsuario tu ON 
+        CASE 
+            WHEN tc.NombreDuplicado = 1 THEN tc.CLI_USUARIO_NOMBRE
+            ELSE CONCAT(tc.CLI_USUARIO_NOMBRE, '_', CAST(tc.NombreDuplicado AS NVARCHAR(10)))
+        END = tu.usuario_nombre
+WHERE 
+    tc.CLI_USUARIO_NOMBRE IS NOT NULL
+
+
+	-- ELIMINAR CLIENTES CON EL MISMO DNI
+GO
+
+WITH Duplicados AS (
+    SELECT 
+        cliente_dni,
+        MIN(usuario_codigo) AS codigo_a_conservar 
+    FROM 
+        LOS_ANTI_PALA.Cliente
+    GROUP BY 
+        cliente_dni
+    HAVING 
+        COUNT(*) > 1 
+)
+
+
+DELETE FROM LOS_ANTI_PALA.Cliente
+WHERE usuario_codigo IN (
+    SELECT c.usuario_codigo
+    FROM LOS_ANTI_PALA.Cliente c
+    JOIN Duplicados d ON c.cliente_dni = d.cliente_dni
+    WHERE c.usuario_codigo != d.codigo_a_conservar 
+);
+
+DELETE FROM LOS_ANTI_PALA.Usuario
+WHERE usuario_codigo NOT IN (SELECT usuario_codigo FROM LOS_ANTI_PALA.Cliente);
+
+GO
+
+GO
+INSERT INTO LOS_ANTI_PALA.Modelo(modelo_codigo, modelo_descripcion)
+SELECT 
+				[PRODUCTO_MOD_CODIGO],
+			    [PRODUCTO_MOD_DESCRIPCION]
+
+FROM [GD2C2024].[gd_esquema].[Maestra] WHERE [PRODUCTO_MOD_DESCRIPCION] IS NOT NULL
+GROUP BY [PRODUCTO_MOD_CODIGO],[PRODUCTO_MOD_DESCRIPCION] ;
+GO
+
+GO
+
+INSERT INTO LOS_ANTI_PALA.Marca(marca_descripcion)
+SELECT 
+				[PRODUCTO_MARCA]
+				
+
+FROM [GD2C2024].[gd_esquema].[Maestra] WHERE [PRODUCTO_MARCA] IS NOT NULL
+GROUP BY [PRODUCTO_MARCA];
+GO
+
+
+  
+
+
