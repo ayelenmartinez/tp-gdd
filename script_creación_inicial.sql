@@ -40,14 +40,15 @@ IF OBJECT_ID('LOS_ANTI_PALA.Detalle_factura', 'U') IS NOT NULL DROP TABLE LOS_AN
 -- CREACION DE TABLAS --
 
 CREATE TABLE LOS_ANTI_PALA.Usuario (
-	usuario_codigo BIGINT PRIMARY KEY,
+	usuario_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	usuario_nombre BIGINT UNIQUE NOT NULL,
 	usuario_password VARCHAR(50) NOT NULL,
 	usuario_fecha_creacion DATE,
 )
 
+
 CREATE TABLE LOS_ANTI_PALA.Cliente (
-	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Usuario PRIMARY KEY,
+	usuario_codigo BIGINT IDENTITY(1,1) REFERENCES LOS_ANTI_PALA.Usuario PRIMARY KEY,
 	cliente_nombre NVARCHAR(50) NOT NULL,
 	cliente_apellido NVARCHAR(50) NOT NULL,
 	cliente_dni DECIMAL(18,0) CONSTRAINT unique_cliente_dni UNIQUE NOT NULL,
@@ -56,23 +57,30 @@ CREATE TABLE LOS_ANTI_PALA.Cliente (
 )
 
 CREATE TABLE LOS_ANTI_PALA.Vendedor (
-	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Usuario PRIMARY KEY,
+	usuario_codigo BIGINT IDENTITY(1,1) REFERENCES LOS_ANTI_PALA.Usuario PRIMARY KEY,
 	vendedor_cuit NVARCHAR(50) CONSTRAINT unique_vendedor_cuit UNIQUE NOT NULL,
 	vendedor_mail NVARCHAR(50) NOT NULL,
 )
 
+
+CREATE TABLE LOS_ANTI_PALA.Tipo_Envio(
+ tipo_envio_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
+ tipo_envio_descripcion VARCHAR(50)
+ )
+
 CREATE TABLE LOS_ANTI_PALA.Envio (
-	envio_codigo BIGINT PRIMARY KEY,
+	envio_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	envio_fecha_programada DATETIME NOT NULL,
 	envio_tipo NVARCHAR(50) NOT NULL,
 	envio_fecha_entrega DATETIME NOT NULL,
 	envio_costo DECIMAL(18,2) NOT NULL DEFAULT 0,
 	envio_hora_inicio DECIMAL(18,0) NOT NULL DEFAULT 0,
 	envio_hora_fin DECIMAL(18,0) NOT NULL DEFAULT 0,
+	envio_tipo_envio BIGINT NOT NULL REFERENCES LOS_ANTI_PALA.tipo_envio
 )
 
 CREATE TABLE LOS_ANTI_PALA.Domicilio (
-	domicilio_codigo BIGINT PRIMARY KEY,
+	domicilio_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	domicilio_calle NVARCHAR(50) NOT NULL,
 	domicilio_nro_calle DECIMAL(18,0) NOT NULL DEFAULT 0,
 	domicilio_codigo_postal NVARCHAR(50) NOT NULL,
@@ -89,7 +97,7 @@ CREATE TABLE LOS_ANTI_PALA.Domicilio_por_usuario (
 )
 
 CREATE TABLE LOS_ANTI_PALA.Publicacion (
-	publicacion_codigo DECIMAL(18,0) PRIMARY KEY,
+	publicacion_codigo DECIMAL(18,0) IDENTITY(1,1) PRIMARY KEY,
 	publicacion_descripcion NVARCHAR(50) NOT NULL,
 	publicacion_stock DECIMAL(18,0) NOT NULL,
 	publicacion_precio DECIMAL(18,2) NOT NULL DEFAULT 0,
@@ -100,17 +108,17 @@ CREATE TABLE LOS_ANTI_PALA.Publicacion (
 )
 
 CREATE TABLE LOS_ANTI_PALA.Provincia (
-	provincia_codigo BIGINT PRIMARY KEY,
+	provincia_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	provincia_nombre NVARCHAR(50) NOT NULL,
 )
 
 CREATE TABLE LOS_ANTI_PALA.Localidad (
-	localidad_codigo BIGINT PRIMARY KEY,
+	localidad_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	localidad_nombre NVARCHAR(50) NOT NULL,
 )
 
 CREATE TABLE LOS_ANTI_PALA.Almacen (
-	almacen_codigo DECIMAL(18,0) PRIMARY KEY,
+	almacen_codigo DECIMAL(18,0) IDENTITY(1,1) PRIMARY KEY,
 	almacen_calle NVARCHAR(50) NOT NULL,
 	almacen_numero_calle DECIMAL(18,0) NOT NULL DEFAULT 0,
 	almacen_costo_dia DECIMAL (18,2),
@@ -124,22 +132,22 @@ CREATE TABLE LOS_ANTI_PALA.Almacen_por_provincia (
 )
 
 CREATE TABLE LOS_ANTI_PALA.Marca (
-	marca_codigo BIGINT PRIMARY KEY,
+	marca_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	marca_descripcion NVARCHAR(50) NOT NULL,
 )
 
 CREATE TABLE LOS_ANTI_PALA.Modelo (
-	modelo_codigo DECIMAL(18,0) PRIMARY KEY,
+	modelo_codigo DECIMAL(18,0) IDENTITY(1,1) PRIMARY KEY,
 	modelo_descripcion NVARCHAR(50) NOT NULL,
 )
 
 CREATE TABLE LOS_ANTI_PALA.Rubro (
-	rubro_codigo DECIMAL(18,0) PRIMARY KEY,
+	rubro_codigo DECIMAL(18,0) IDENTITY(1,1) PRIMARY KEY,
 	rubro_descripcion NVARCHAR(50) NOT NULL,
 )
 
 CREATE TABLE LOS_ANTI_PALA.Subrubro (
-	subrubro_codigo DECIMAL(18,0) PRIMARY KEY,
+	subrubro_codigo DECIMAL(18,0) IDENTITY(1,1) PRIMARY KEY,
 	subrubro_descripcion NVARCHAR(50) NOT NULL,
 	rubro_codigo DECIMAL(18,0) REFERENCES LOS_ANTI_PALA.Rubro,
 )
@@ -159,13 +167,13 @@ CREATE TABLE LOS_ANTI_PALA.Producto_por_subrubro (
 )
 
 CREATE TABLE LOS_ANTI_PALA.Medio_de_pago (
-	medio_pago_codigo BIGINT PRIMARY KEY,
+	medio_pago_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	medio_pago_descripcion NVARCHAR(50) NOT NULL,
 	medio_pago_tipo NVARCHAR(50) NOT NULL,
 )
 
 CREATE TABLE LOS_ANTI_PALA.Pago (
-	pago_codigo BIGINT PRIMARY KEY,
+	pago_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	pago_importe DECIMAL (18,2) NOT NULL DEFAULT 0,
 	pago_fecha DATE NOT NULL,
 	medio_pago_codigo BIGINT REFERENCES LOS_ANTI_PALA.Medio_de_pago NOT NULL,
@@ -179,7 +187,7 @@ CREATE TABLE LOS_ANTI_PALA.Detalle_de_pago (
 )
 
 CREATE TABLE LOS_ANTI_PALA.Detalle_de_venta (
-	detalle_venta_codigo BIGINT PRIMARY KEY,
+	detalle_venta_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
     publicacion_codigo DECIMAL(18,0) NOT NULL REFERENCES LOS_ANTI_PALA.Publicacion,
 	detalle_venta_cantidad DECIMAL (18,0) NOT NULL DEFAULT 0,
 	detalle_venta_precio DECIMAL(18,2) NOT NULL DEFAULT 0,
@@ -187,7 +195,7 @@ CREATE TABLE LOS_ANTI_PALA.Detalle_de_venta (
 )
 
 CREATE TABLE LOS_ANTI_PALA.Venta (
-	venta_codigo DECIMAL (18,0) PRIMARY KEY,
+	venta_codigo DECIMAL (18,0) IDENTITY(1,1) PRIMARY KEY,
 	venta_fecha DATE NOT NULL,
 	venta_total DECIMAL (18,2) NOT NULL DEFAULT 0,
 	usuario_codigo BIGINT NOT NULL REFERENCES LOS_ANTI_PALA.Usuario,
@@ -195,41 +203,31 @@ CREATE TABLE LOS_ANTI_PALA.Venta (
 )
 
 CREATE TABLE LOS_ANTI_PALA.Concepto_factura (
-	concepto_factura_codigo BIGINT PRIMARY KEY,
-	concepto_factura_tipo NVARCHAR(50) NOT NULL,
-	concepto_precio DECIMAL(18,2) NOT NULL DEFAULT 0,
+	concepto_factura_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
+	concepto_factura_tipo NVARCHAR(50) NOT NULL
 )
 
---falta el campo factura_det_subtotal que no entiendo que es
-
 CREATE TABLE LOS_ANTI_PALA.Detalle_factura (
-	detalle_factura_cantidad DECIMAL (18,0) NOT NULL,
+	detalle_factura_cantidad DECIMAL(18,0) NOT NULL,
 	concepto_factura_codigo BIGINT REFERENCES LOS_ANTI_PALA.Concepto_factura NOT NULL,
+	detalle_factura_precio DECIMAL(18,0) NOT NULL,
+	detalle_factura_subtotal DECIMAL(18,0) NOT NULL
 )
 
 CREATE TABLE LOS_ANTI_PALA.Factura (
-	factura_numero DECIMAL(18,0) PRIMARY KEY,
+	factura_numero DECIMAL(18,0) IDENTITY(1,1) PRIMARY KEY,
 	factura_fecha DATE NOT NULL,
 	factura_total DECIMAL(8,0) NOT NULL DEFAULT 0,
 	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Usuario NOT NULL,
 )
 
+-- Migracion desde la tabla maestra
 
 GO
 
-CREATE SEQUENCE DomicilioSeq
-
-START WITH 1
-
-INCREMENT BY 1;
-
-
-
-INSERT INTO LOS_ANTI_PALA.Domicilio (domicilio_codigo, domicilio_calle, domicilio_nro_calle, domicilio_codigo_postal, domicilio_localidad, domicilio_provincia, domicilio_piso, domicilio_depto)
+INSERT INTO LOS_ANTI_PALA.Domicilio (domicilio_calle, domicilio_nro_calle, domicilio_codigo_postal, domicilio_localidad, domicilio_provincia, domicilio_piso, domicilio_depto)
 
 SELECT 
-
-    NEXT VALUE FOR DomicilioSeq,
 
     CLI_USUARIO_DOMICILIO_CALLE,
 
@@ -245,24 +243,29 @@ SELECT
 
     CLI_USUARIO_DOMICILIO_DEPTO
 
-FROM [GD2C2024].[gd_esquema].[Maestra];
+FROM [GD2C2024].[gd_esquema].[Maestra] WHERE CLI_USUARIO_DOMICILIO_CALLE IS NOT NULL 
+GROUP BY CLI_USUARIO_DOMICILIO_CALLE,
+
+    CLI_USUARIO_DOMICILIO_NRO_CALLE,
+
+    CLI_USUARIO_DOMICILIO_CP,
+
+    CLI_USUARIO_DOMICILIO_LOCALIDAD,
+
+    CLI_USUARIO_DOMICILIO_PROVINCIA,
+
+    CLI_USUARIO_DOMICILIO_PISO,
+
+    CLI_USUARIO_DOMICILIO_DEPTO;
 
 
 
 GO
 
-CREATE SEQUENCE medioPagoseqNew3
 
-START WITH 1
-
-INCREMENT BY 1;
-
-INSERT INTO LOS_ANTI_PALA.Medio_de_pago(medio_pago_codigo,medio_pago_descripcion,medio_pago_tipo)
+INSERT INTO LOS_ANTI_PALA.Medio_de_pago(medio_pago_descripcion,medio_pago_tipo)
 
 SELECT
-
-NEXT VALUE FOR medioPagoseqNew3,
-
 		PAGO_MEDIO_PAGO,
 
         PAGO_TIPO_MEDIO_PAGO
@@ -274,46 +277,9 @@ GO
 
 GO
 
-CREATE SEQUENCE detalleDePagoSeq
-
-START WITH 1
-
-INCREMENT BY 1;
-
-INSERT INTO LOS_ANTI_PALA.Detalle_de_pago(pago_codigo,detalle_pago_nro_tarjeta,detalle_pago_venc_tarjeta,detalle_pago_cuotas)
-
-SELECT
-
-NEXT VALUE FOR detalleDePagoSeq,
-
-		[PAGO_NRO_TARJETA]
-
-       ,[PAGO_FECHA_VENC_TARJETA]
-
-       ,[PAGO_CANT_CUOTAS]
-
-FROM [GD2C2024].[gd_esquema].[Maestra];
-
-GO
-
-
-
-GO
-
-CREATE SEQUENCE localidadAlmacenSeq1
-
-START WITH 1
-
-INCREMENT BY 1;
-
-
-
-INSERT INTO LOS_ANTI_PALA.Localidad(localidad_codigo, localidad_nombre)
+INSERT INTO LOS_ANTI_PALA.Localidad(localidad_nombre)
 
 SELECT 
-
-NEXT VALUE FOR localidadAlmacenSeq1,
-
 				ALMACEN_Localidad
 
 FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY ALMACEN_Localidad HAVING ALMACEN_Localidad IS NOT NULL;
@@ -326,20 +292,9 @@ GO
 
 GO
 
-CREATE SEQUENCE provinciaSeq
-
-START WITH 1
-
-INCREMENT BY 1;
-
-
-
-INSERT INTO LOS_ANTI_PALA.Provincia(provincia_codigo, provincia_nombre)
+INSERT INTO LOS_ANTI_PALA.Provincia(provincia_nombre)
 
 SELECT 
-
-NEXT VALUE FOR provinciaSeq,
-
 				[ALMACEN_PROVINCIA]
 
 FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY [ALMACEN_PROVINCIA] HAVING [ALMACEN_PROVINCIA] IS NOT NULL;
@@ -352,23 +307,12 @@ GO
 
 GO
 
-CREATE SEQUENCE facturaSeq
-
-START WITH 1
-
-INCREMENT BY 1;
-
-
-
-INSERT INTO LOS_ANTI_PALA.Concepto_factura(concepto_factura_codigo,concepto_factura_tipo,concepto_precio)
+INSERT INTO LOS_ANTI_PALA.Concepto_factura(concepto_factura_tipo)
 
 SELECT 
+				FACTURA_DET_TIPO
 
-NEXT VALUE FOR facturaSeq,
-
-				[ALMACEN_PROVINCIA]
-
-FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY [ALMACEN_PROVINCIA] HAVING [ALMACEN_PROVINCIA] IS NOT NULL;
+FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY FACTURA_DET_TIPO HAVING FACTURA_DET_TIPO IS NOT NULL;
 
 GO
 
@@ -376,20 +320,9 @@ GO
 
 GO
 
-CREATE SEQUENCE rubroSeq
-
-START WITH 1
-
-INCREMENT BY 1;
-
-
-
-INSERT INTO LOS_ANTI_PALA.Rubro(rubro_codigo,rubro_descripcion)
+INSERT INTO LOS_ANTI_PALA.Rubro(rubro_descripcion)
 
 SELECT 
-
-NEXT VALUE FOR rubroSeq,
-
 				[PRODUCTO_RUBRO_DESCRIPCION]
 
 FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY [PRODUCTO_RUBRO_DESCRIPCION] HAVING [PRODUCTO_RUBRO_DESCRIPCION] IS NOT NULL;
@@ -420,11 +353,9 @@ WITH CTE AS (
 
 
 
-INSERT INTO LOS_ANTI_PALA.Subrubro(subrubro_codigo, subrubro_descripcion, rubro_codigo)
+INSERT INTO LOS_ANTI_PALA.Subrubro(subrubro_descripcion, rubro_codigo)
 
 SELECT 
-
-    NEXT VALUE FOR rubroSeq,
 
     PRODUCTO_SUB_RUBRO,
 
@@ -443,20 +374,10 @@ GROUP BY
 GO
 
 GO
-CREATE SEQUENCE tipoEnvioSeq
 
-START WITH 1
-
-INCREMENT BY 1;
-
-
-
-INSERT INTO LOS_ANTI_PALA.Tipo_Envio(tipo_envio_codigo,)
+INSERT INTO LOS_ANTI_PALA.Tipo_Envio(tipo_envio_descripcion)
 
 SELECT 
-
-NEXT VALUE FOR tipoEnvioSeq,
-
 				[ENVIO_TIPO]
 
 FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY [ENVIO_TIPO] HAVING [ENVIO_TIPO] IS NOT NULL;
