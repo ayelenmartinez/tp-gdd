@@ -190,10 +190,11 @@ CREATE TABLE LOS_ANTI_PALA.Pago (
 	pago_importe DECIMAL (18,2) NOT NULL DEFAULT 0,
 	pago_fecha DATE NOT NULL,
 	medio_pago_codigo BIGINT REFERENCES LOS_ANTI_PALA.Medio_de_pago NOT NULL,
+	detalle_pago_codigo BIGINT REFERENCES LOS_ANTI_PALA.Detalle_de_pago NOT NULL,
 )
 
 CREATE TABLE LOS_ANTI_PALA.Detalle_de_pago (
-    pago_codigo BIGINT NOT NULL REFERENCES LOS_ANTI_PALA.Pago PRIMARY KEY,
+    detalle_pago_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	detalle_pago_nro_tarjeta NVARCHAR(50) NOT NULL,
 	detalle_pago_venc_tarjeta DATE NOT NULL,
 	detalle_pago_cuotas DECIMAL(18,0) NOT NULL DEFAULT 0,
@@ -287,6 +288,33 @@ FROM [GD2C2024].[gd_esquema].[Maestra] WHERE PAGO_MEDIO_PAGO IS NOT NULL GROUP B
 
 GO
 
+
+
+INSERT INTO LOS_ANTI_PALA.Pago(pago_importe,pago_fecha, medio_pago_codigo, detalle_pago_codigo)
+
+SELECT 
+
+		[PAGO_IMPORTE]
+		,[PAGO_FECHA]
+		,(SELECT medio_pago_codigo FROM LOS_ANTI_PALA.Medio_de_pago 
+		WHERE LOS_ANTI_PALA.Medio_de_pago.medio_pago_descripcion = [GD2C2024].[gd_esquema].[Maestra].[PAGO_MEDIO_PAGO] AND LOS_ANTI_PALA.Medio_de_pago.medio_pago_tipo = [GD2C2024].[gd_esquema].[Maestra].[PAGO_TIPO_MEDIO_PAGO] 
+		GROUP BY medio_pago_codigo )AS medio_pago_codigo
+		,(SELECT detalle_pago_codigo FROM LOS_ANTI_PALA.Detalle_de_pago 
+		WHERE LOS_ANTI_PALA.Detalle_de_pago.detalle_pago_nro_tarjeta = [GD2C2024].[gd_esquema].[Maestra].[PAGO_NRO_TARJETA] AND LOS_ANTI_PALA.Detalle_de_pago.detalle_pago_venc_tarjeta = [GD2C2024].[gd_esquema].[Maestra].[PAGO_FECHA_VENC_TARJETA] 
+		GROUP BY detalle_pago_codigo )AS Detalle_pago_codigo
+FROM [GD2C2024].[gd_esquema].[Maestra]
+		WHERE [PAGO_IMPORTE] IS NOT NULL AND [PAGO_FECHA] IS NOT NULL 
+GO
+
+INSERT INTO LOS_ANTI_PALA.Detalle_de_pago(detalle_pago_nro_tarjeta, detalle_pago_venc_tarjeta, detalle_pago_cuotas)
+
+SELECT
+		
+		[PAGO_NRO_TARJETA]
+		,[PAGO_FECHA_VENC_TARJETA]
+		,[PAGO_CANT_CUOTAS]
+		
+FROM [GD2C2024].[gd_esquema].[Maestra] WHERE [PAGO_NRO_TARJETA] IS NOT NULL AND [PAGO_FECHA_VENC_TARJETA] IS NOT NULL AND [PAGO_CANT_CUOTAS] IS NOT NULL
 
 GO
 
