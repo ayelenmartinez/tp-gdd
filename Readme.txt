@@ -6,4 +6,4 @@
   Alan Fried, 168.632-0
   Stephanie Ortiz, 164.544-4
 
-- Email del responsable del grupo: 
+- Email del responsable del grupo: mgarro@frba.utn.edu.ar
