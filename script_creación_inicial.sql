@@ -185,19 +185,20 @@ CREATE TABLE LOS_ANTI_PALA.Medio_de_pago (
 	medio_pago_tipo NVARCHAR(50) NOT NULL,
 )
 
-CREATE TABLE LOS_ANTI_PALA.Pago (
-	pago_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
-	pago_importe DECIMAL (18,2) NOT NULL DEFAULT 0,
-	pago_fecha DATE NOT NULL,
-	medio_pago_codigo BIGINT REFERENCES LOS_ANTI_PALA.Medio_de_pago NOT NULL,
-	detalle_pago_codigo BIGINT REFERENCES LOS_ANTI_PALA.Detalle_de_pago NOT NULL,
-)
 
 CREATE TABLE LOS_ANTI_PALA.Detalle_de_pago (
     detalle_pago_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	detalle_pago_nro_tarjeta NVARCHAR(50) NOT NULL,
 	detalle_pago_venc_tarjeta DATE NOT NULL,
 	detalle_pago_cuotas DECIMAL(18,0) NOT NULL DEFAULT 0,
+)
+
+CREATE TABLE LOS_ANTI_PALA.Pago (
+	pago_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
+	pago_importe DECIMAL (18,2) NOT NULL DEFAULT 0,
+	pago_fecha DATE NOT NULL,
+	medio_pago_codigo BIGINT REFERENCES LOS_ANTI_PALA.Medio_de_pago NOT NULL,
+	detalle_pago_codigo BIGINT REFERENCES LOS_ANTI_PALA.Detalle_de_pago,
 )
 
 CREATE TABLE LOS_ANTI_PALA.Detalle_de_venta (
@@ -303,7 +304,7 @@ SELECT
 		WHERE LOS_ANTI_PALA.Detalle_de_pago.detalle_pago_nro_tarjeta = [GD2C2024].[gd_esquema].[Maestra].[PAGO_NRO_TARJETA] AND LOS_ANTI_PALA.Detalle_de_pago.detalle_pago_venc_tarjeta = [GD2C2024].[gd_esquema].[Maestra].[PAGO_FECHA_VENC_TARJETA] 
 		GROUP BY detalle_pago_codigo )AS Detalle_pago_codigo
 FROM [GD2C2024].[gd_esquema].[Maestra]
-		WHERE [PAGO_IMPORTE] IS NOT NULL AND [PAGO_FECHA] IS NOT NULL 
+		WHERE [PAGO_IMPORTE] IS NOT NULL AND [PAGO_FECHA] IS NOT NULL
 GO
 
 INSERT INTO LOS_ANTI_PALA.Detalle_de_pago(detalle_pago_nro_tarjeta, detalle_pago_venc_tarjeta, detalle_pago_cuotas)
@@ -457,7 +458,7 @@ OUTPUT inserted.usuario_codigo, inserted.usuario_nombre INTO @TempUsuario -- Cap
 SELECT
     CASE 
         WHEN NombreDuplicado = 1 THEN u.CLI_USUARIO_NOMBRE -- Si no es duplicado, conservar el nombre original
-        ELSE CONCAT(u.CLI_USUARIO_NOMBRE, '_', CAST(NombreDuplicado AS NVARCHAR(10))) -- Si es duplicado, agregar un sufijo numérico
+        ELSE CONCAT(u.CLI_USUARIO_NOMBRE, '_', CAST(NombreDuplicado AS NVARCHAR(10))) -- Si es duplicado, agregar un sufijo numÃ©rico
     END AS usuario_nombre,
     u.CLI_USUARIO_PASS,
     u.CLI_USUARIO_FECHA_CREACION
@@ -488,7 +489,7 @@ FROM
 WHERE 
     m.CLI_USUARIO_NOMBRE IS NOT NULL;
 
--- Insertar los datos en la tabla Cliente usando los códigos de usuario recién creados
+-- Insertar los datos en la tabla Cliente usando los cÃ³digos de usuario reciÃ©n creados
 INSERT INTO LOS_ANTI_PALA.Cliente (
     usuario_codigo,
     cliente_nombre,
@@ -498,7 +499,7 @@ INSERT INTO LOS_ANTI_PALA.Cliente (
     cliente_fecha_nac
 )
 SELECT 
-    tu.usuario_codigo, -- Usamos el código recién creado de la tabla temporal
+    tu.usuario_codigo, -- Usamos el cÃ³digo reciÃ©n creado de la tabla temporal
     tc.CLIENTE_NOMBRE,
     tc.CLIENTE_APELLIDO,
     tc.CLIENTE_DNI,
@@ -567,5 +568,3 @@ GO
 
 
   
-
-
