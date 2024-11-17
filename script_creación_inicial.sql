@@ -84,7 +84,7 @@ CREATE TABLE LOS_ANTI_PALA.Tipo_Envio(
 CREATE TABLE LOS_ANTI_PALA.Envio (
 	envio_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	envio_fecha_programada DATETIME NOT NULL,
-	envio_tipo NVARCHAR(50) NOT NULL,
+	--envio_tipo NVARCHAR(50) NOT NULL,
 	envio_fecha_entrega DATETIME NOT NULL,
 	envio_costo DECIMAL(18,2) NOT NULL DEFAULT 0,
 	envio_hora_inicio DECIMAL(18,0) NOT NULL DEFAULT 0,
@@ -349,8 +349,24 @@ GO
 
 GO
 
-INSERT INTO LOS_ANTI_PALA.Concepto_factura(concepto_factura_tipo)
+/*
+INSERT INTO LOS_ANTI_PALA.Publicacion(publicacion_descripcion,publicacion_stock,publicacion_precio,publicacion_costo,producto_porcejtane_venta,publicacion_fecha)
 
+SELECT 
+[PUBLICACION_DESCRIPCION],
+[PUBLICACION_STOCK],
+[PUBLICACION_FECHA],
+[PUBLICACION_PRECIO],
+[PUBLICACION_COSTO],
+[PUBLICACION_PORC_VENTA],
+(SELECT usuario_codigo FROM LOS_ANTI_PALA.Usuario
+WHERE LOS_ANTI_PALA.Usuario.usuario_codigo = [GD2C2024].[gd_esquema].[Maestra].[usuario_codigo]
+)
+FROM [GD2C2024].[gd_esquema].[Maestra]
+
+GO*/
+
+INSERT INTO LOS_ANTI_PALA.Concepto_factura(concepto_factura_tipo)
 SELECT 
 				FACTURA_DET_TIPO
 
@@ -431,6 +447,23 @@ HAVING
 
 
 GO
+
+INSERT INTO LOS_ANTI_PALA.Envio(envio_fecha_programada,envio_fecha_entrega,envio_costo,envio_hora_inicio,envio_hora_fin, envio_tipo_envio)
+SELECT 
+  [ENVIO_FECHA_PROGAMADA],
+  [ENVIO_FECHA_ENTREGA],
+  [ENVIO_COSTO],
+  [ENVIO_HORA_INICIO],
+  [ENVIO_HORA_FIN_INICIO],
+  (SELECT tipo_envio_codigo from LOS_ANTI_PALA.Tipo_Envio
+  WHERE LOS_ANTI_PALA.Tipo_Envio.tipo_envio_descripcion =  [GD2C2024].[gd_esquema].[Maestra].[ENVIO_TIPO]
+  )
+
+  FROM
+  [GD2C2024].[gd_esquema].[Maestra] 
+
+GO
+
 
 DECLARE @TempUsuario TABLE (
     usuario_codigo BIGINT,
