@@ -16,6 +16,8 @@ IF OBJECT_ID('LOS_ANTI_PALA.Detalle_factura', 'U') IS NOT NULL DROP TABLE LOS_AN
 IF OBJECT_ID('LOS_ANTI_PALA.Concepto_factura', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Concepto_factura;
 IF OBJECT_ID('LOS_ANTI_PALA.Factura', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Factura;
 
+
+IF OBJECT_ID('LOS_ANTI_PALA.Envio', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Envio;
 IF OBJECT_ID('LOS_ANTI_PALA.Venta', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Venta;
 IF OBJECT_ID('LOS_ANTI_PALA.Detalle_de_venta', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Detalle_de_venta;
 
@@ -39,7 +41,6 @@ IF OBJECT_ID('LOS_ANTI_PALA.Provincia', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PAL
 IF OBJECT_ID('LOS_ANTI_PALA.Domicilio_por_usuario', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Domicilio_por_usuario;
 IF OBJECT_ID('LOS_ANTI_PALA.Domicilio', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Domicilio;
 
-IF OBJECT_ID('LOS_ANTI_PALA.Envio', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Envio;
 IF OBJECT_ID('LOS_ANTI_PALA.Tipo_Envio', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Tipo_Envio;
 IF OBJECT_ID('LOS_ANTI_PALA.Vendedor', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Vendedor;
 
@@ -86,16 +87,6 @@ CREATE TABLE LOS_ANTI_PALA.Tipo_Envio(
  tipo_envio_descripcion VARCHAR(50) NOT NULL
  )
 
-CREATE TABLE LOS_ANTI_PALA.Envio (
-	envio_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
-	envio_fecha_programada DATETIME NOT NULL,
-	--envio_tipo NVARCHAR(50) NOT NULL,
-	envio_fecha_entrega DATETIME NOT NULL,
-	envio_costo DECIMAL(18,2) NOT NULL DEFAULT 0,
-	envio_hora_inicio DECIMAL(18,0) NOT NULL DEFAULT 0,
-	envio_hora_fin DECIMAL(18,0) NOT NULL DEFAULT 0,
-	envio_tipo_envio BIGINT NOT NULL REFERENCES LOS_ANTI_PALA.tipo_envio
-)
 
 CREATE TABLE LOS_ANTI_PALA.Domicilio (
 	domicilio_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
@@ -200,20 +191,34 @@ CREATE TABLE LOS_ANTI_PALA.Pago (
 	detalle_pago_codigo BIGINT REFERENCES LOS_ANTI_PALA.Detalle_de_pago,
 )
 
+
+CREATE TABLE LOS_ANTI_PALA.Venta (
+	venta_codigo DECIMAL (18,0) PRIMARY KEY,
+	venta_fecha DATE NOT NULL,
+	venta_total DECIMAL (18,2) NOT NULL DEFAULT 0,
+	usuario_codigo BIGINT NOT NULL REFERENCES LOS_ANTI_PALA.Usuario,
+)
+
+
 CREATE TABLE LOS_ANTI_PALA.Detalle_de_venta (
 	detalle_venta_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
     publicacion_codigo DECIMAL(18,0) NOT NULL REFERENCES LOS_ANTI_PALA.Publicacion,
 	detalle_venta_cantidad DECIMAL (18,0) NOT NULL DEFAULT 0,
 	detalle_venta_precio DECIMAL(18,2) NOT NULL DEFAULT 0,
 	detalle_venta_subtotal DECIMAL(18,2) NOT NULL DEFAULT 0,
+	venta_codigo DECIMAL (18,0) REFERENCES LOS_ANTI_PALA.Venta NOT NULL,
 )
 
-CREATE TABLE LOS_ANTI_PALA.Venta (
-	venta_codigo DECIMAL (18,0) IDENTITY(1,1) PRIMARY KEY,
-	venta_fecha DATE NOT NULL,
-	venta_total DECIMAL (18,2) NOT NULL DEFAULT 0,
-	usuario_codigo BIGINT NOT NULL REFERENCES LOS_ANTI_PALA.Usuario,
-	detalle_venta_codigo BIGINT NOT NULL REFERENCES LOS_ANTI_PALA.Detalle_de_venta,
+CREATE TABLE LOS_ANTI_PALA.Envio (
+	envio_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
+	envio_fecha_programada DATETIME NOT NULL,
+	--envio_tipo NVARCHAR(50) NOT NULL,
+	envio_fecha_entrega DATETIME NOT NULL,
+	envio_costo DECIMAL(18,2) NOT NULL DEFAULT 0,
+	envio_hora_inicio DECIMAL(18,0) NOT NULL DEFAULT 0,
+	envio_hora_fin DECIMAL(18,0) NOT NULL DEFAULT 0,
+	envio_tipo_envio BIGINT NOT NULL REFERENCES LOS_ANTI_PALA.tipo_envio,
+	venta_codigo DECIMAL(18,0) REFERENCES LOS_ANTI_PALA.Venta
 )
 
 CREATE TABLE LOS_ANTI_PALA.Concepto_factura (
@@ -500,6 +505,30 @@ END
 GO
 ---------- Fin Migracion Tipo Envio ----------
 
+---------- Migracion Venta ----------
+
+IF OBJECT_ID('migrar_tabla_venta', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_venta;
+GO
+CREATE PROCEDURE migrar_tabla_venta
+AS
+	BEGIN
+		INSERT INTO LOS_ANTI_PALA.Venta (venta_codigo, venta_fecha, venta_total, usuario_codigo)
+		SELECT DISTINCT 
+			VENTA_CODIGO,
+			VENTA_FECHA,
+			VENTA_TOTAL,
+			c.usuario_codigo
+		FROM gd_esquema.Maestra m
+		JOIN LOS_ANTI_PALA.Cliente c ON 
+				c.cliente_dni = m.CLIENTE_DNI 
+			AND c.cliente_nombre = m.CLIENTE_NOMBRE 
+			AND c.cliente_apellido = m.CLIENTE_APELLIDO
+	END
+GO 
+
+---------- Fin migracion Venta ----------
+
 
 ---------- Migracion Envio ----------
 
@@ -509,20 +538,21 @@ GO
 CREATE PROCEDURE migrar_tabla_envio
 AS
 	BEGIN
-		INSERT INTO LOS_ANTI_PALA.Envio(envio_fecha_programada,envio_fecha_entrega,envio_costo,envio_hora_inicio,envio_hora_fin, envio_tipo_envio)
+		INSERT INTO LOS_ANTI_PALA.Envio(
+			envio_fecha_programada,envio_fecha_entrega,envio_costo,envio_hora_inicio,
+			envio_hora_fin, envio_tipo_envio, venta_codigo)
 		SELECT 
 			[ENVIO_FECHA_PROGAMADA],
 			[ENVIO_FECHA_ENTREGA],
 			[ENVIO_COSTO],
 			[ENVIO_HORA_INICIO],
 			[ENVIO_HORA_FIN_INICIO],
-			(	SELECT 
-					tipo_envio_codigo 
-				FROM LOS_ANTI_PALA.Tipo_Envio
-				WHERE LOS_ANTI_PALA.Tipo_Envio.tipo_envio_descripcion =  [GD2C2024].[gd_esquema].[Maestra].[ENVIO_TIPO]
-			)
+			tipo_envio_codigo,
+			v.venta_codigo
 			FROM [GD2C2024].[gd_esquema].[Maestra] 
-			WHERE [ENVIO_FECHA_PROGAMADA] IS NOT NULL
+				JOIN LOS_ANTI_PALA.Tipo_Envio
+				ON LOS_ANTI_PALA.Tipo_Envio.tipo_envio_descripcion =  [GD2C2024].[gd_esquema].[Maestra].[ENVIO_TIPO]
+				JOIN LOS_ANTI_PALA.Venta v ON v.venta_codigo = [GD2C2024].[gd_esquema].[Maestra].[VENTA_CODIGO]
 			PRINT('Tabla "Envio" migrada')
 	END
 GO
@@ -711,6 +741,7 @@ EXEC migrar_tabla_envio;
 EXEC migrar_tabla_usuario;
 EXEC migrar_tabla_vendedor;
 EXEC migrar_tabla_cliente;
+EXEC migrar_tabla_venta;
 EXEC migrar_tabla_modelo;
 EXEC migrar_tabla_marca;
 EXEC migrar_tabla_almacen;
@@ -724,5 +755,4 @@ ROLLBACK TRANSACTION;
 END CATCH
 
 ------------------- Fin ejecucion de procedures -------------------
-
 
