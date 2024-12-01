@@ -53,25 +53,31 @@ EXEC sp_MSforeachtable "ALTER TABLE ? WITH CHECK CHECK CONSTRAINT ALL";
 
 CREATE TABLE LOS_ANTI_PALA.Usuario (
 	usuario_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
-	usuario_nombre VARCHAR(50) UNIQUE NOT NULL,
+	usuario_nombre VARCHAR(50) NOT NULL,
 	usuario_password VARCHAR(50) NOT NULL,
 	usuario_fecha_creacion DATE,
+	usuario_calle NVARCHAR(50),
+	usuario_nro_calle DECIMAL(18,0),
+	usuario_piso DECIMAL(18,0),
+	usuario_depto NVARCHAR(50),
+	usuario_cp NVARCHAR(50),
+	usuario_localidad NVARCHAR(50),
+	usuario_provincia NVARCHAR(50),
+	usuario_mail NVARCHAR(50),
 )
-
 
 CREATE TABLE LOS_ANTI_PALA.Cliente (
 	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Usuario PRIMARY KEY,
 	cliente_nombre NVARCHAR(50) NOT NULL,
 	cliente_apellido NVARCHAR(50) NOT NULL,
 	cliente_dni DECIMAL(18,0) CONSTRAINT unique_cliente_dni NOT NULL,
-	cliente_mail NVARCHAR(50) NOT NULL,
 	cliente_fecha_nac DATE NOT NULL,
 )
 
 CREATE TABLE LOS_ANTI_PALA.Vendedor (
-	usuario_codigo BIGINT IDENTITY(1,1) REFERENCES LOS_ANTI_PALA.Usuario PRIMARY KEY,
+	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Usuario PRIMARY KEY,
 	vendedor_cuit NVARCHAR(50) CONSTRAINT unique_vendedor_cuit UNIQUE NOT NULL,
-	vendedor_mail NVARCHAR(50) NOT NULL,
+	vendedor_razon_social NVARCHAR(50) NOT NULL,
 )
 
 
@@ -130,7 +136,7 @@ CREATE TABLE LOS_ANTI_PALA.Localidad (
 )
 
 CREATE TABLE LOS_ANTI_PALA.Almacen (
-	almacen_codigo DECIMAL(18,0) IDENTITY(1,1) PRIMARY KEY,
+	almacen_codigo DECIMAL(18,0) PRIMARY KEY,
 	almacen_calle NVARCHAR(50) NOT NULL,
 	almacen_numero_calle DECIMAL(18,0) NOT NULL DEFAULT 0,
 	almacen_costo_dia DECIMAL (18,2),
@@ -523,116 +529,102 @@ GO
 ---------- Fin migracion Envio ----------
 
 
----------- Migracion Usuario y Cliente ----------
+---------- Migracion Usuario ----------
 
-IF OBJECT_ID('migrar_tabla_usuario_y_cliente', 'P') IS NOT NULL
-    DROP PROCEDURE migrar_tabla_usuario_y_cliente;
+IF OBJECT_ID('migrar_tabla_usuario', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_usuario;
 GO
-CREATE PROCEDURE migrar_tabla_usuario_y_cliente
+CREATE PROCEDURE migrar_tabla_usuario
 AS
 	BEGIN
-		DECLARE @TempUsuario TABLE (
-			usuario_codigo BIGINT,
-			usuario_nombre NVARCHAR(255)
-		);
-		WITH UsuariosConNumeracion AS (
-			SELECT 
-				m.CLI_USUARIO_NOMBRE,
-				m.CLI_USUARIO_PASS,
-				m.CLI_USUARIO_FECHA_CREACION,
-				ROW_NUMBER() OVER (PARTITION BY m.CLI_USUARIO_NOMBRE ORDER BY m.CLI_USUARIO_NOMBRE) AS NombreDuplicado
-			FROM [GD2C2024].[gd_esquema].[Maestra] m
-			WHERE m.CLI_USUARIO_NOMBRE IS NOT NULL
-		)
 		INSERT INTO LOS_ANTI_PALA.Usuario (
-			usuario_nombre,
-			usuario_password,
-			usuario_fecha_creacion
-		)
-		OUTPUT inserted.usuario_codigo, inserted.usuario_nombre INTO @TempUsuario -- Capturar el usuario_codigo y usuario_nombre generados
-		SELECT
-			CASE 
-				WHEN NombreDuplicado = 1 THEN u.CLI_USUARIO_NOMBRE -- Si no es duplicado, conservar el nombre original
-				ELSE CONCAT(u.CLI_USUARIO_NOMBRE, '_', CAST(NombreDuplicado AS NVARCHAR(10))) -- Si es duplicado, agregar un sufijo numérico
-			END AS usuario_nombre,
-			u.CLI_USUARIO_PASS,
-			u.CLI_USUARIO_FECHA_CREACION
-		FROM UsuariosConNumeracion u;
+			usuario_nombre, usuario_password, usuario_fecha_creacion,  
+			usuario_calle, usuario_nro_calle, usuario_piso,
+			usuario_depto, usuario_cp, usuario_localidad, usuario_provincia, usuario_mail
+			)
+		SELECT DISTINCT
+			[CLI_USUARIO_NOMBRE],
+			[CLI_USUARIO_PASS],
+			[CLI_USUARIO_FECHA_CREACION],
+			[CLI_USUARIO_DOMICILIO_CALLE],
+			[CLI_USUARIO_DOMICILIO_NRO_CALLE],
+			[CLI_USUARIO_DOMICILIO_PISO],
+			[CLI_USUARIO_DOMICILIO_DEPTO],
+			[CLI_USUARIO_DOMICILIO_CP],
+			[CLI_USUARIO_DOMICILIO_LOCALIDAD],
+			[CLI_USUARIO_DOMICILIO_PROVINCIA],
+			[CLIENTE_MAIL]
+		FROM [GD2C2024].[gd_esquema].[Maestra] 
+		WHERE [CLI_USUARIO_NOMBRE] IS NOT NULL 
+		UNION
+		SELECT DISTINCT
+			[VEN_USUARIO_NOMBRE],
+			[VEN_USUARIO_PASS],
+			[VEN_USUARIO_FECHA_CREACION],
+			[VEN_USUARIO_DOMICILIO_CALLE],
+			[VEN_USUARIO_DOMICILIO_NRO_CALLE],
+			[VEN_USUARIO_DOMICILIO_PISO],
+			[VEN_USUARIO_DOMICILIO_DEPTO],
+			[VEN_USUARIO_DOMICILIO_CP],
+			[VEN_USUARIO_DOMICILIO_LOCALIDAD],
+			[VEN_USUARIO_DOMICILIO_PROVINCIA],
+			[VENDEDOR_MAIL]
+		FROM [GD2C2024].[gd_esquema].[Maestra] 
+		WHERE [VEN_USUARIO_NOMBRE] IS NOT NULL
 
-		DECLARE @TempClienteNumeracion TABLE (
-			CLI_USUARIO_NOMBRE NVARCHAR(255),
-			CLIENTE_NOMBRE NVARCHAR(255),
-			CLIENTE_APELLIDO NVARCHAR(255),
-			CLIENTE_DNI NVARCHAR(50),
-			CLIENTE_MAIL NVARCHAR(255),
-			CLIENTE_FECHA_NAC DATE,
-			NombreDuplicado INT
-		);
-		
-		INSERT INTO @TempClienteNumeracion
-		SELECT 
-			m.CLI_USUARIO_NOMBRE,
-			m.CLIENTE_NOMBRE,
-			m.CLIENTE_APELLIDO,
-			m.CLIENTE_DNI,
-			m.CLIENTE_MAIL,
-			m.CLIENTE_FECHA_NAC,
-			ROW_NUMBER() OVER (PARTITION BY m.CLI_USUARIO_NOMBRE ORDER BY m.CLI_USUARIO_NOMBRE) AS NombreDuplicado
-		FROM [GD2C2024].[gd_esquema].[Maestra] m
-		WHERE m.CLI_USUARIO_NOMBRE IS NOT NULL;
-
-
-
-		-- Insertar los datos en la tabla Cliente usando los códigos de usuario recién creados
-		INSERT INTO LOS_ANTI_PALA.Cliente (
-			usuario_codigo,
-			cliente_nombre,
-			cliente_apellido,
-			cliente_dni,
-			cliente_mail,
-			cliente_fecha_nac
-		)
-		SELECT 
-			tu.usuario_codigo, -- Usamos el código recién creado de la tabla temporal
-			tc.CLIENTE_NOMBRE,
-			tc.CLIENTE_APELLIDO,
-			tc.CLIENTE_DNI,
-			tc.CLIENTE_MAIL,
-			tc.CLIENTE_FECHA_NAC
-		FROM 
-			@TempClienteNumeracion tc
-			JOIN @TempUsuario tu ON 
-				CASE 
-					WHEN tc.NombreDuplicado = 1 THEN tc.CLI_USUARIO_NOMBRE
-					ELSE CONCAT(tc.CLI_USUARIO_NOMBRE, '_', CAST(tc.NombreDuplicado AS NVARCHAR(10)))
-				END = tu.usuario_nombre
-		WHERE tc.CLI_USUARIO_NOMBRE IS NOT NULL
-		PRINT('Tablas "Usuario" y "Cliente" migrada')
-	END
-		-- ELIMINAR CLIENTES CON EL MISMO DNI
-	BEGIN
-		WITH Duplicados AS (
-			SELECT 
-				cliente_dni,
-				MIN(usuario_codigo) AS codigo_a_conservar 
-			FROM LOS_ANTI_PALA.Cliente
-			GROUP BY cliente_dni
-			HAVING COUNT(*) > 1 
-		)
-
-		DELETE FROM LOS_ANTI_PALA.Cliente
-		WHERE usuario_codigo IN (
-			SELECT c.usuario_codigo
-			FROM LOS_ANTI_PALA.Cliente c
-			JOIN Duplicados d ON c.cliente_dni = d.cliente_dni
-			WHERE c.usuario_codigo != d.codigo_a_conservar 
-		);
-
-		DELETE FROM LOS_ANTI_PALA.Usuario
-		WHERE usuario_codigo NOT IN (SELECT usuario_codigo FROM LOS_ANTI_PALA.Cliente);
+		PRINT('Tabla "Usuario" migrada')
 	END
 GO
--------- Fin migracion Usuario y Cliete ----------
+-------- Fin migracion Usuario ----------
+
+
+-------- Migracion Vendedor ----------
+
+IF OBJECT_ID('migrar_tabla_vendedor', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_vendedor;
+GO
+CREATE PROCEDURE migrar_tabla_vendedor
+AS
+	BEGIN
+		INSERT INTO LOS_ANTI_PALA.Vendedor(usuario_codigo, vendedor_cuit, vendedor_razon_social)
+		SELECT DISTINCT
+			usuario_codigo,
+			[VENDEDOR_CUIT],
+			[VENDEDOR_RAZON_SOCIAL]
+		FROM [GD2C2024].[gd_esquema].[Maestra] JOIN LOS_ANTI_PALA.Usuario 
+						ON VENDEDOR_MAIL = usuario_mail AND
+						VEN_USUARIO_NOMBRE = usuario_nombre AND
+						VEN_USUARIO_FECHA_CREACION = usuario_fecha_creacion
+		WHERE [VENDEDOR_CUIT] IS NOT NULL
+		PRINT('Tabla "Vendedor" migrada')
+	END
+GO
+-------- Fin migracion Vendedor ----------
+
+-------- Migracion Cliente ----------
+
+IF OBJECT_ID('migrar_tabla_cliente', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_cliente;
+GO
+CREATE PROCEDURE migrar_tabla_cliente
+AS
+	BEGIN
+		INSERT INTO LOS_ANTI_PALA.Cliente
+			(usuario_codigo, cliente_nombre, cliente_apellido, cliente_dni, cliente_fecha_nac)
+		SELECT DISTINCT
+			usuario_codigo,
+			[CLIENTE_NOMBRE],
+			[CLIENTE_APELLIDO],
+			[CLIENTE_DNI],
+			[CLIENTE_FECHA_NAC]
+		FROM [GD2C2024].[gd_esquema].[Maestra] JOIN LOS_ANTI_PALA.Usuario 
+						ON CLIENTE_MAIL = usuario_mail AND
+						CLI_USUARIO_NOMBRE = usuario_nombre AND
+						CLI_USUARIO_FECHA_CREACION = usuario_fecha_creacion
+		PRINT('Tabla "Cliente" migrada')
+	END
+GO
+-------- Fin migracion Cliente ----------
 
 
 -------- Migracion Modelo ----------
@@ -673,8 +665,30 @@ AS
         PRINT('Tabla "Marca" migrada')
     END
 GO
-
 -------- Fin migracion Marca ----------
+
+---------- Migracion Almacen ----------
+
+IF OBJECT_ID('migrar_tabla_almacen', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_almacen;
+GO
+CREATE PROCEDURE migrar_tabla_almacen
+AS
+    BEGIN
+        INSERT INTO LOS_ANTI_PALA.Almacen(almacen_codigo,almacen_calle, almacen_numero_calle, almacen_costo_dia, localidad_codigo)
+		SELECT DISTINCT
+			[ALMACEN_CODIGO],
+			[ALMACEN_CALLE],
+			[ALMACEN_NRO_CALLE],
+			[ALMACEN_COSTO_DIA_AL],
+			l.localidad_codigo
+		FROM [GD2C2024].[gd_esquema].[Maestra]  JOIN LOS_ANTI_PALA.Localidad l
+			 ON [GD2C2024].[gd_esquema].[Maestra].ALMACEN_Localidad = l.localidad_nombre
+        PRINT('Tabla "Almacen" migrada')
+    END
+GO
+
+-------- Fin migracion Almacen ----------
 
 
 ------------------- Fin creacion de procedures -------------------
@@ -694,9 +708,12 @@ EXEC migrar_tabla_concepto_factura;
 EXEC migrar_tabla_rubro_y_subrubro;
 EXEC migrar_tabla_tipo_envio;
 EXEC migrar_tabla_envio;
-EXEC migrar_tabla_usuario_y_cliente;
+EXEC migrar_tabla_usuario;
+EXEC migrar_tabla_vendedor;
+EXEC migrar_tabla_cliente;
 EXEC migrar_tabla_modelo;
 EXEC migrar_tabla_marca;
+EXEC migrar_tabla_almacen;
 	PRINT '--- Todas las tablas fueron migradas correctamente --';
 COMMIT TRANSACTION
 END TRY
@@ -708,5 +725,4 @@ END CATCH
 
 ------------------- Fin ejecucion de procedures -------------------
 
------------------------------------------------------------- FIN MIGRACION DE LA TABLA MAESTRA ------------------------------------------------------------
 
