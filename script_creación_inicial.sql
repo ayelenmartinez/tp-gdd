@@ -5,52 +5,51 @@ USE GD2C2024;
 IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = 'LOS_ANTI_PALA')
     EXEC('CREATE SCHEMA LOS_ANTI_PALA');
 
--- ELIMINACION PREVENTIVA DE TABLAS --
+
+------------------------------------------------------------ ELIMINACION PREVENTIVA DE TABLAS ------------------------------------------------------------
 
 EXEC sp_MSforeachtable "ALTER TABLE ? NOCHECK CONSTRAINT ALL";
 
+
+-- Nuevos drop --
 IF OBJECT_ID('LOS_ANTI_PALA.Detalle_factura', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Detalle_factura;
 IF OBJECT_ID('LOS_ANTI_PALA.Concepto_factura', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Concepto_factura;
+IF OBJECT_ID('LOS_ANTI_PALA.Factura', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Factura;
 
-IF OBJECT_ID('LOS_ANTI_PALA.Detalle_de_venta', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Detalle_de_venta;
 IF OBJECT_ID('LOS_ANTI_PALA.Venta', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Venta;
+IF OBJECT_ID('LOS_ANTI_PALA.Detalle_de_venta', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Detalle_de_venta;
 
-IF OBJECT_ID('LOS_ANTI_PALA.Detalle_de_pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Detalle_de_pago;
 IF OBJECT_ID('LOS_ANTI_PALA.Pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Pago;
+IF OBJECT_ID('LOS_ANTI_PALA.Detalle_de_pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Detalle_de_pago;
 IF OBJECT_ID('LOS_ANTI_PALA.Medio_de_pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Medio_de_pago;
 
+IF OBJECT_ID('LOS_ANTI_PALA.Publicacion', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Publicacion;
 IF OBJECT_ID('LOS_ANTI_PALA.Producto_por_subrubro', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Producto_por_subrubro;
 IF OBJECT_ID('LOS_ANTI_PALA.Producto', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Producto;
-
 IF OBJECT_ID('LOS_ANTI_PALA.Subrubro', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Subrubro;
 IF OBJECT_ID('LOS_ANTI_PALA.Rubro', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Rubro;
 
 IF OBJECT_ID('LOS_ANTI_PALA.Modelo', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Modelo;
 IF OBJECT_ID('LOS_ANTI_PALA.Marca', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Marca;
 
-IF OBJECT_ID('LOS_ANTI_PALA.Almacen_por_provincia', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Almacen_por_provincia;
 IF OBJECT_ID('LOS_ANTI_PALA.Almacen', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Almacen;
-
 IF OBJECT_ID('LOS_ANTI_PALA.Localidad', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Localidad;
 IF OBJECT_ID('LOS_ANTI_PALA.Provincia', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Provincia;
-
-IF OBJECT_ID('LOS_ANTI_PALA.Publicacion', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Publicacion;
 
 IF OBJECT_ID('LOS_ANTI_PALA.Domicilio_por_usuario', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Domicilio_por_usuario;
 IF OBJECT_ID('LOS_ANTI_PALA.Domicilio', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Domicilio;
 
 IF OBJECT_ID('LOS_ANTI_PALA.Envio', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Envio;
 IF OBJECT_ID('LOS_ANTI_PALA.Tipo_Envio', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Tipo_Envio;
+IF OBJECT_ID('LOS_ANTI_PALA.Vendedor', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Vendedor;
 
 IF OBJECT_ID('LOS_ANTI_PALA.Cliente', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Cliente;
-IF OBJECT_ID('LOS_ANTI_PALA.Vendedor', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Vendedor;
 IF OBJECT_ID('LOS_ANTI_PALA.Usuario', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Usuario;
 
-IF OBJECT_ID('LOS_ANTI_PALA.Factura', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Factura;
 
 EXEC sp_MSforeachtable "ALTER TABLE ? WITH CHECK CHECK CONSTRAINT ALL";
 
--- CREACION DE TABLAS --
+------------------------------------------------------------ CREACION DE TABLAS ------------------------------------------------------------
 
 CREATE TABLE LOS_ANTI_PALA.Usuario (
 	usuario_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
@@ -78,7 +77,7 @@ CREATE TABLE LOS_ANTI_PALA.Vendedor (
 
 CREATE TABLE LOS_ANTI_PALA.Tipo_Envio(
  tipo_envio_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
- tipo_envio_descripcion VARCHAR(50)
+ tipo_envio_descripcion VARCHAR(50) NOT NULL
  )
 
 CREATE TABLE LOS_ANTI_PALA.Envio (
@@ -136,12 +135,6 @@ CREATE TABLE LOS_ANTI_PALA.Almacen (
 	almacen_numero_calle DECIMAL(18,0) NOT NULL DEFAULT 0,
 	almacen_costo_dia DECIMAL (18,2),
 	localidad_codigo BIGINT REFERENCES LOS_ANTI_PALA.Localidad NOT NULL,
-)
-
-CREATE TABLE LOS_ANTI_PALA.Almacen_por_provincia (
-	PRIMARY KEY (provincia_codigo, almacen_codigo),
-    provincia_codigo BIGINT NOT NULL REFERENCES LOS_ANTI_PALA.Provincia,
-    almacen_codigo DECIMAL(18,0) NOT NULL REFERENCES LOS_ANTI_PALA.Almacen,
 )
 
 CREATE TABLE LOS_ANTI_PALA.Marca (
@@ -236,114 +229,169 @@ CREATE TABLE LOS_ANTI_PALA.Factura (
 	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Usuario NOT NULL,
 )
 
--- MIGRACION DE LA TABLA MAESTRA
+------------------------------------------------------------ FIN CREACION DE TABLAS ------------------------------------------------------------
+
+
+
+
+------------------------------------------------------------ MIGRACION DE LA TABLA MAESTRA ------------------------------------------------------------
+
+
+
+------------------- Creacion de procedures -------------------
 
 GO
 
-INSERT INTO LOS_ANTI_PALA.Domicilio (domicilio_calle, domicilio_nro_calle, domicilio_codigo_postal, domicilio_localidad, domicilio_provincia, domicilio_piso, domicilio_depto)
+---------- Migracion Domicilio ----------
 
-SELECT 
-
-    CLI_USUARIO_DOMICILIO_CALLE,
-
-    CLI_USUARIO_DOMICILIO_NRO_CALLE,
-
-    CLI_USUARIO_DOMICILIO_CP,
-
-    CLI_USUARIO_DOMICILIO_LOCALIDAD,
-
-    CLI_USUARIO_DOMICILIO_PROVINCIA,
-
-    CLI_USUARIO_DOMICILIO_PISO,
-
-    CLI_USUARIO_DOMICILIO_DEPTO
-
-FROM [GD2C2024].[gd_esquema].[Maestra] WHERE CLI_USUARIO_DOMICILIO_CALLE IS NOT NULL 
-GROUP BY CLI_USUARIO_DOMICILIO_CALLE,
-
-    CLI_USUARIO_DOMICILIO_NRO_CALLE,
-
-    CLI_USUARIO_DOMICILIO_CP,
-
-    CLI_USUARIO_DOMICILIO_LOCALIDAD,
-
-    CLI_USUARIO_DOMICILIO_PROVINCIA,
-
-    CLI_USUARIO_DOMICILIO_PISO,
-
-    CLI_USUARIO_DOMICILIO_DEPTO;
-
-
-
+IF OBJECT_ID('migrar_tabla_domicilio', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_domicilio;
 GO
+CREATE PROCEDURE migrar_tabla_domicilio
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.Domicilio (domicilio_calle, domicilio_nro_calle, domicilio_codigo_postal, 
+										 domicilio_localidad, domicilio_provincia, domicilio_piso, domicilio_depto)
+	SELECT 
+		CLI_USUARIO_DOMICILIO_CALLE,
+		CLI_USUARIO_DOMICILIO_NRO_CALLE,
+		CLI_USUARIO_DOMICILIO_CP,
+		CLI_USUARIO_DOMICILIO_LOCALIDAD,
+		CLI_USUARIO_DOMICILIO_PROVINCIA,
+		CLI_USUARIO_DOMICILIO_PISO,
+		CLI_USUARIO_DOMICILIO_DEPTO
+	FROM [GD2C2024].[gd_esquema].[Maestra] 
+	WHERE CLI_USUARIO_DOMICILIO_CALLE IS NOT NULL 
+	GROUP BY CLI_USUARIO_DOMICILIO_CALLE,
+			 CLI_USUARIO_DOMICILIO_NRO_CALLE,
+			 CLI_USUARIO_DOMICILIO_CP,
+			 CLI_USUARIO_DOMICILIO_LOCALIDAD,
+			 CLI_USUARIO_DOMICILIO_PROVINCIA,
+			 CLI_USUARIO_DOMICILIO_PISO,
+			 CLI_USUARIO_DOMICILIO_DEPTO;
+	PRINT('Tabla "Domicilio" migrada')
+END
+GO
+---------- Fin Migracion Domiciio ----------
 
 
-INSERT INTO LOS_ANTI_PALA.Medio_de_pago(medio_pago_descripcion,medio_pago_tipo)
+---------- Migracion Medio de pago ----------
 
-SELECT
+IF OBJECT_ID('migrar_tabla_medio_de_pago', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_medio_de_pago;
+GO
+CREATE PROCEDURE migrar_tabla_medio_de_pago
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.Medio_de_pago(medio_pago_descripcion,medio_pago_tipo)
+	SELECT
 		PAGO_MEDIO_PAGO,
-
-        PAGO_TIPO_MEDIO_PAGO
-
-FROM [GD2C2024].[gd_esquema].[Maestra] WHERE PAGO_MEDIO_PAGO IS NOT NULL GROUP BY PAGO_MEDIO_PAGO, PAGO_TIPO_MEDIO_PAGO;
-
+		PAGO_TIPO_MEDIO_PAGO
+	FROM [GD2C2024].[gd_esquema].[Maestra] 
+	WHERE PAGO_MEDIO_PAGO IS NOT NULL 
+	GROUP BY PAGO_MEDIO_PAGO, PAGO_TIPO_MEDIO_PAGO;
+	PRINT('Tabla "Medio de pago" migrada')
+END
 GO
 
+---------- Fin migracion Medio de pago ----------
 
 
-INSERT INTO LOS_ANTI_PALA.Pago(pago_importe,pago_fecha, medio_pago_codigo, detalle_pago_codigo)
+---------- Migracion Pago ----------
 
-SELECT 
-
-		[PAGO_IMPORTE]
-		,[PAGO_FECHA]
-		,(SELECT medio_pago_codigo FROM LOS_ANTI_PALA.Medio_de_pago 
-		WHERE LOS_ANTI_PALA.Medio_de_pago.medio_pago_descripcion = [GD2C2024].[gd_esquema].[Maestra].[PAGO_MEDIO_PAGO] AND LOS_ANTI_PALA.Medio_de_pago.medio_pago_tipo = [GD2C2024].[gd_esquema].[Maestra].[PAGO_TIPO_MEDIO_PAGO] 
-		GROUP BY medio_pago_codigo )AS medio_pago_codigo
-		,(SELECT detalle_pago_codigo FROM LOS_ANTI_PALA.Detalle_de_pago 
-		WHERE LOS_ANTI_PALA.Detalle_de_pago.detalle_pago_nro_tarjeta = [GD2C2024].[gd_esquema].[Maestra].[PAGO_NRO_TARJETA] AND LOS_ANTI_PALA.Detalle_de_pago.detalle_pago_venc_tarjeta = [GD2C2024].[gd_esquema].[Maestra].[PAGO_FECHA_VENC_TARJETA] 
-		GROUP BY detalle_pago_codigo )AS Detalle_pago_codigo
-FROM [GD2C2024].[gd_esquema].[Maestra]
-		WHERE [PAGO_IMPORTE] IS NOT NULL AND [PAGO_FECHA] IS NOT NULL
+IF OBJECT_ID('migrar_tabla_pago', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_pago;
+GO
+CREATE PROCEDURE migrar_tabla_pago
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.Pago(pago_importe,pago_fecha, medio_pago_codigo, detalle_pago_codigo)
+	SELECT 
+		[PAGO_IMPORTE],
+		[PAGO_FECHA],
+		(	SELECT medio_pago_codigo FROM LOS_ANTI_PALA.Medio_de_pago 
+			WHERE	LOS_ANTI_PALA.Medio_de_pago.medio_pago_descripcion = [GD2C2024].[gd_esquema].[Maestra].[PAGO_MEDIO_PAGO] 
+				AND LOS_ANTI_PALA.Medio_de_pago.medio_pago_tipo = [GD2C2024].[gd_esquema].[Maestra].[PAGO_TIPO_MEDIO_PAGO] 
+			GROUP BY medio_pago_codigo 
+		) AS medio_pago_codigo,
+		(	SELECT detalle_pago_codigo FROM LOS_ANTI_PALA.Detalle_de_pago 
+			WHERE	LOS_ANTI_PALA.Detalle_de_pago.detalle_pago_nro_tarjeta = [GD2C2024].[gd_esquema].[Maestra].[PAGO_NRO_TARJETA] 
+				AND LOS_ANTI_PALA.Detalle_de_pago.detalle_pago_venc_tarjeta = [GD2C2024].[gd_esquema].[Maestra].[PAGO_FECHA_VENC_TARJETA] 
+			GROUP BY detalle_pago_codigo 
+		) AS Detalle_pago_codigo
+	FROM [GD2C2024].[gd_esquema].[Maestra]
+	WHERE	[PAGO_IMPORTE] IS NOT NULL 
+		AND [PAGO_FECHA] IS NOT NULL
+	PRINT ('Tabla "Pago" migrada')
+END
 GO
 
-INSERT INTO LOS_ANTI_PALA.Detalle_de_pago(detalle_pago_nro_tarjeta, detalle_pago_venc_tarjeta, detalle_pago_cuotas)
+---------- Fin migracion Pago ----------
 
-SELECT
-		
-		[PAGO_NRO_TARJETA]
-		,[PAGO_FECHA_VENC_TARJETA]
-		,[PAGO_CANT_CUOTAS]
-		
-FROM [GD2C2024].[gd_esquema].[Maestra] WHERE [PAGO_NRO_TARJETA] IS NOT NULL AND [PAGO_FECHA_VENC_TARJETA] IS NOT NULL AND [PAGO_CANT_CUOTAS] IS NOT NULL
 
+---------- Migracion Detalle de pago ----------
+
+IF OBJECT_ID('migrar_tabla_detalle_de_pago', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_detalle_de_pago;
+GO
+CREATE PROCEDURE migrar_tabla_detalle_de_pago
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.Detalle_de_pago(detalle_pago_nro_tarjeta, detalle_pago_venc_tarjeta, detalle_pago_cuotas)
+	SELECT
+		[PAGO_NRO_TARJETA],
+		[PAGO_FECHA_VENC_TARJETA],
+		[PAGO_CANT_CUOTAS]
+	FROM [GD2C2024].[gd_esquema].[Maestra] 
+	WHERE [PAGO_NRO_TARJETA] IS NOT NULL 
+							 AND [PAGO_FECHA_VENC_TARJETA] IS NOT NULL 
+							 AND [PAGO_CANT_CUOTAS] IS NOT NULL
+	PRINT('Tabla "Detalle de pago" migrada')
+END
 GO
 
-INSERT INTO LOS_ANTI_PALA.Localidad(localidad_nombre)
-
-SELECT 
-				ALMACEN_Localidad
-
-FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY ALMACEN_Localidad HAVING ALMACEN_Localidad IS NOT NULL;
+---------- Fin migracion Detalle de pago ----------
 
 
+---------- Migracion Localidad ----------
 
+IF OBJECT_ID('migrar_tabla_localidad', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_localidad;
+GO
+CREATE PROCEDURE migrar_tabla_localidad
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.Localidad(localidad_nombre)
+	SELECT 
+		ALMACEN_Localidad
+	FROM [GD2C2024].[gd_esquema].[Maestra] 
+	GROUP BY ALMACEN_Localidad 
+	HAVING ALMACEN_Localidad IS NOT NULL;
+	PRINT ('Tabla "Localidad" migrada')
+END
 GO
 
+---------- Fin migracion Localidad ----------
 
+---------- Migracion Provincia ----------
 
+IF OBJECT_ID('migrar_tabla_provincia', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_provincia;
+GO
+CREATE PROCEDURE migrar_tabla_provincia
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.Provincia(provincia_nombre)
+	SELECT 
+		[ALMACEN_PROVINCIA]
+	FROM [GD2C2024].[gd_esquema].[Maestra] 
+	GROUP BY [ALMACEN_PROVINCIA] 
+	HAVING [ALMACEN_PROVINCIA] IS NOT NULL;
+	PRINT ('Tabla "Provincia" migrada')
+END
 GO
 
-INSERT INTO LOS_ANTI_PALA.Provincia(provincia_nombre)
-
-SELECT 
-				[ALMACEN_PROVINCIA]
-
-FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY [ALMACEN_PROVINCIA] HAVING [ALMACEN_PROVINCIA] IS NOT NULL;
-
-
-
-GO
+---------- Fin migracion Provincia ----------
 
 /*
 INSERT INTO LOS_ANTI_PALA.Publicacion(publicacion_descripcion,publicacion_stock,publicacion_precio,publicacion_costo,producto_porcejtane_venta,publicacion_fecha)
@@ -362,240 +410,303 @@ FROM [GD2C2024].[gd_esquema].[Maestra]
 
 GO*/
 
-GO
 
-INSERT INTO LOS_ANTI_PALA.Concepto_factura(concepto_factura_tipo)
-
-SELECT 
-				FACTURA_DET_TIPO
-
-FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY FACTURA_DET_TIPO HAVING FACTURA_DET_TIPO IS NOT NULL;
+---------- Migracion Concepto Factura ----------
 
 GO
-
-
-GO
-
-INSERT INTO LOS_ANTI_PALA.Rubro(rubro_descripcion)
-
-SELECT 
-				[PRODUCTO_RUBRO_DESCRIPCION]
-
-FROM [GD2C2024].[gd_esquema].[Maestra] GROUP BY [PRODUCTO_RUBRO_DESCRIPCION] HAVING [PRODUCTO_RUBRO_DESCRIPCION] IS NOT NULL;
+IF OBJECT_ID('migrar_tabla_concepto_factura', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_concepto_factura;
 
 GO
+CREATE PROCEDURE migrar_tabla_concepto_factura
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.Concepto_factura(concepto_factura_tipo)
+	SELECT 
+		FACTURA_DET_TIPO
+	FROM [GD2C2024].[gd_esquema].[Maestra] 
+	GROUP BY FACTURA_DET_TIPO 
+	HAVING FACTURA_DET_TIPO IS NOT NULL;
+	PRINT('Tabla "Concepto facutra" migrada')
+END
+GO
+---------- Fin migracion Concepto Factura ----------
 
 
 
+---------- Migracion Rubro y Subrubro ----------
+
+IF OBJECT_ID('migrar_tabla_rubro_y_subrubro', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_rubro_y_subrubro;
+GO
+CREATE PROCEDURE migrar_tabla_rubro_y_subrubro
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.Rubro(rubro_descripcion)
+	SELECT 
+		[PRODUCTO_RUBRO_DESCRIPCION]
+
+	FROM [GD2C2024].[gd_esquema].[Maestra] 
+	GROUP BY [PRODUCTO_RUBRO_DESCRIPCION] 
+	HAVING [PRODUCTO_RUBRO_DESCRIPCION] IS NOT NULL;
+
+	WITH CTE AS (
+					SELECT 
+						PRODUCTO_SUB_RUBRO,
+						(	
+							SELECT rubro_codigo 
+							FROM LOS_ANTI_PALA.Rubro r 
+							WHERE PRODUCTO_RUBRO_DESCRIPCION = r.rubro_descripcion
+						) AS RUBRO_FK
+					FROM [GD2C2024].[gd_esquema].[Maestra] 
+					WHERE  PRODUCTO_SUB_RUBRO IS NOT NULL
+				)
+
+	INSERT INTO LOS_ANTI_PALA.Subrubro(subrubro_descripcion, rubro_codigo)
+	SELECT 
+		PRODUCTO_SUB_RUBRO,
+		RUBRO_FK
+	FROM CTE
+	GROUP BY PRODUCTO_SUB_RUBRO, RUBRO_FK
+	PRINT('Tablas "Rubro" y "Subrubro" migradas')
+END
+GO
+---------- Fin migracion Rubro y Subrubro ----------
+
+
+
+---------- Migracion Tipo Envio ----------
+
+IF OBJECT_ID('migrar_tabla_tipo_envio', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_tipo_envio;
+GO
+CREATE PROCEDURE migrar_tabla_tipo_envio
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.Tipo_Envio(tipo_envio_descripcion)
+	SELECT 
+		[ENVIO_TIPO]
+	FROM [GD2C2024].[gd_esquema].[Maestra] 
+	GROUP BY [ENVIO_TIPO] 
+	HAVING [ENVIO_TIPO] IS NOT NULL;
+	PRINT('Tabla "Tipo Envio" migrada')
+END
+GO
+---------- Fin Migracion Tipo Envio ----------
+
+
+---------- Migracion Envio ----------
+
+IF OBJECT_ID('migrar_tabla_envio', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_envio;
+GO
+CREATE PROCEDURE migrar_tabla_envio
+AS
+	BEGIN
+		INSERT INTO LOS_ANTI_PALA.Envio(envio_fecha_programada,envio_fecha_entrega,envio_costo,envio_hora_inicio,envio_hora_fin, envio_tipo_envio)
+		SELECT 
+			[ENVIO_FECHA_PROGAMADA],
+			[ENVIO_FECHA_ENTREGA],
+			[ENVIO_COSTO],
+			[ENVIO_HORA_INICIO],
+			[ENVIO_HORA_FIN_INICIO],
+			(	SELECT 
+					tipo_envio_codigo 
+				FROM LOS_ANTI_PALA.Tipo_Envio
+				WHERE LOS_ANTI_PALA.Tipo_Envio.tipo_envio_descripcion =  [GD2C2024].[gd_esquema].[Maestra].[ENVIO_TIPO]
+			)
+			FROM [GD2C2024].[gd_esquema].[Maestra] 
+			WHERE [ENVIO_FECHA_PROGAMADA] IS NOT NULL
+			PRINT('Tabla "Envio" migrada')
+	END
+GO
+---------- Fin migracion Envio ----------
+
+
+---------- Migracion Usuario y Cliente ----------
+
+IF OBJECT_ID('migrar_tabla_usuario_y_cliente', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_usuario_y_cliente;
+GO
+CREATE PROCEDURE migrar_tabla_usuario_y_cliente
+AS
+	BEGIN
+		DECLARE @TempUsuario TABLE (
+			usuario_codigo BIGINT,
+			usuario_nombre NVARCHAR(255)
+		);
+		WITH UsuariosConNumeracion AS (
+			SELECT 
+				m.CLI_USUARIO_NOMBRE,
+				m.CLI_USUARIO_PASS,
+				m.CLI_USUARIO_FECHA_CREACION,
+				ROW_NUMBER() OVER (PARTITION BY m.CLI_USUARIO_NOMBRE ORDER BY m.CLI_USUARIO_NOMBRE) AS NombreDuplicado
+			FROM [GD2C2024].[gd_esquema].[Maestra] m
+			WHERE m.CLI_USUARIO_NOMBRE IS NOT NULL
+		)
+		INSERT INTO LOS_ANTI_PALA.Usuario (
+			usuario_nombre,
+			usuario_password,
+			usuario_fecha_creacion
+		)
+		OUTPUT inserted.usuario_codigo, inserted.usuario_nombre INTO @TempUsuario -- Capturar el usuario_codigo y usuario_nombre generados
+		SELECT
+			CASE 
+				WHEN NombreDuplicado = 1 THEN u.CLI_USUARIO_NOMBRE -- Si no es duplicado, conservar el nombre original
+				ELSE CONCAT(u.CLI_USUARIO_NOMBRE, '_', CAST(NombreDuplicado AS NVARCHAR(10))) -- Si es duplicado, agregar un sufijo numérico
+			END AS usuario_nombre,
+			u.CLI_USUARIO_PASS,
+			u.CLI_USUARIO_FECHA_CREACION
+		FROM UsuariosConNumeracion u;
+
+		DECLARE @TempClienteNumeracion TABLE (
+			CLI_USUARIO_NOMBRE NVARCHAR(255),
+			CLIENTE_NOMBRE NVARCHAR(255),
+			CLIENTE_APELLIDO NVARCHAR(255),
+			CLIENTE_DNI NVARCHAR(50),
+			CLIENTE_MAIL NVARCHAR(255),
+			CLIENTE_FECHA_NAC DATE,
+			NombreDuplicado INT
+		);
+		
+		INSERT INTO @TempClienteNumeracion
+		SELECT 
+			m.CLI_USUARIO_NOMBRE,
+			m.CLIENTE_NOMBRE,
+			m.CLIENTE_APELLIDO,
+			m.CLIENTE_DNI,
+			m.CLIENTE_MAIL,
+			m.CLIENTE_FECHA_NAC,
+			ROW_NUMBER() OVER (PARTITION BY m.CLI_USUARIO_NOMBRE ORDER BY m.CLI_USUARIO_NOMBRE) AS NombreDuplicado
+		FROM [GD2C2024].[gd_esquema].[Maestra] m
+		WHERE m.CLI_USUARIO_NOMBRE IS NOT NULL;
+
+
+
+		-- Insertar los datos en la tabla Cliente usando los códigos de usuario recién creados
+		INSERT INTO LOS_ANTI_PALA.Cliente (
+			usuario_codigo,
+			cliente_nombre,
+			cliente_apellido,
+			cliente_dni,
+			cliente_mail,
+			cliente_fecha_nac
+		)
+		SELECT 
+			tu.usuario_codigo, -- Usamos el código recién creado de la tabla temporal
+			tc.CLIENTE_NOMBRE,
+			tc.CLIENTE_APELLIDO,
+			tc.CLIENTE_DNI,
+			tc.CLIENTE_MAIL,
+			tc.CLIENTE_FECHA_NAC
+		FROM 
+			@TempClienteNumeracion tc
+			JOIN @TempUsuario tu ON 
+				CASE 
+					WHEN tc.NombreDuplicado = 1 THEN tc.CLI_USUARIO_NOMBRE
+					ELSE CONCAT(tc.CLI_USUARIO_NOMBRE, '_', CAST(tc.NombreDuplicado AS NVARCHAR(10)))
+				END = tu.usuario_nombre
+		WHERE tc.CLI_USUARIO_NOMBRE IS NOT NULL
+		PRINT('Tablas "Usuario" y "Cliente" migrada')
+	END
+		-- ELIMINAR CLIENTES CON EL MISMO DNI
+	BEGIN
+		WITH Duplicados AS (
+			SELECT 
+				cliente_dni,
+				MIN(usuario_codigo) AS codigo_a_conservar 
+			FROM LOS_ANTI_PALA.Cliente
+			GROUP BY cliente_dni
+			HAVING COUNT(*) > 1 
+		)
+
+		DELETE FROM LOS_ANTI_PALA.Cliente
+		WHERE usuario_codigo IN (
+			SELECT c.usuario_codigo
+			FROM LOS_ANTI_PALA.Cliente c
+			JOIN Duplicados d ON c.cliente_dni = d.cliente_dni
+			WHERE c.usuario_codigo != d.codigo_a_conservar 
+		);
+
+		DELETE FROM LOS_ANTI_PALA.Usuario
+		WHERE usuario_codigo NOT IN (SELECT usuario_codigo FROM LOS_ANTI_PALA.Cliente);
+	END
+GO
+-------- Fin migracion Usuario y Cliete ----------
+
+
+-------- Migracion Modelo ----------
+
+IF OBJECT_ID('migrar_tabla_modelo', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_modelo;
+GO
+CREATE PROCEDURE migrar_tabla_modelo
+AS
+	BEGIN
+		INSERT INTO LOS_ANTI_PALA.Modelo(modelo_codigo, modelo_descripcion)
+		SELECT 
+			[PRODUCTO_MOD_CODIGO],
+			[PRODUCTO_MOD_DESCRIPCION]
+
+		FROM [GD2C2024].[gd_esquema].[Maestra] 
+		WHERE [PRODUCTO_MOD_DESCRIPCION] IS NOT NULL
+		GROUP BY [PRODUCTO_MOD_CODIGO],[PRODUCTO_MOD_DESCRIPCION] ;
+		PRINT('Tabla "Modelo" migrada')
+	END
+GO
+-------- Fin migracion Modelo ----------
+
+---------- Migracion Marca ----------
+
+IF OBJECT_ID('migrar_tabla_marca', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_marca;
+GO
+CREATE PROCEDURE migrar_tabla_marca
+AS
+    BEGIN
+        INSERT INTO LOS_ANTI_PALA.Marca(marca_descripcion)
+		SELECT 
+			[PRODUCTO_MARCA]
+		FROM [GD2C2024].[gd_esquema].[Maestra] 
+		WHERE [PRODUCTO_MARCA] IS NOT NULL
+		GROUP BY [PRODUCTO_MARCA];
+        PRINT('Tabla "Marca" migrada')
+    END
 GO
 
-WITH CTE AS (
-
-    SELECT 
-
-        PRODUCTO_SUB_RUBRO,
-
-        (SELECT rubro_codigo FROM LOS_ANTI_PALA.Rubro r WHERE PRODUCTO_RUBRO_DESCRIPCION = r.rubro_descripcion) AS RUBRO_FK
-
-    FROM 
-
-        [GD2C2024].[gd_esquema].[Maestra] 
-
-    WHERE 
-
-        PRODUCTO_SUB_RUBRO IS NOT NULL
-
-)
+-------- Fin migracion Marca ----------
 
 
+------------------- Fin creacion de procedures -------------------
 
-INSERT INTO LOS_ANTI_PALA.Subrubro(subrubro_descripcion, rubro_codigo)
-
-SELECT 
-
-    PRODUCTO_SUB_RUBRO,
-
-    RUBRO_FK
-
-FROM 
-
-    CTE
-
-GROUP BY 
-
-    PRODUCTO_SUB_RUBRO,
-
-    RUBRO_FK;
-
+------------------- Ejecucion de procedures -------------------
 GO
 
-GO
+BEGIN TRANSACTION
+BEGIN TRY
+EXEC migrar_tabla_domicilio;
+EXEC migrar_tabla_medio_de_pago;
+EXEC migrar_tabla_pago;
+EXEC migrar_tabla_detalle_de_pago;
+EXEC migrar_tabla_localidad;
+EXEC migrar_tabla_provincia;
+EXEC migrar_tabla_concepto_factura;
+EXEC migrar_tabla_rubro_y_subrubro;
+EXEC migrar_tabla_tipo_envio;
+EXEC migrar_tabla_envio;
+EXEC migrar_tabla_usuario_y_cliente;
+EXEC migrar_tabla_modelo;
+EXEC migrar_tabla_marca;
+	PRINT '--- Todas las tablas fueron migradas correctamente --';
+COMMIT TRANSACTION
+END TRY
 
-INSERT INTO LOS_ANTI_PALA.Tipo_Envio(tipo_envio_descripcion)
-SELECT 
-    [ENVIO_TIPO]
-FROM 
-    [GD2C2024].[gd_esquema].[Maestra] 
-GROUP BY 
-    [ENVIO_TIPO] 
-HAVING 
-    [ENVIO_TIPO] IS NOT NULL;
+BEGIN CATCH
+ROLLBACK TRANSACTION;
+		THROW 50001, 'No se migraron correctamente las tablas', 1;
+END CATCH
 
+------------------- Fin ejecucion de procedures -------------------
 
+------------------------------------------------------------ FIN MIGRACION DE LA TABLA MAESTRA ------------------------------------------------------------
 
-
-
-GO
-
-INSERT INTO LOS_ANTI_PALA.Envio(envio_fecha_programada,envio_fecha_entrega,envio_costo,envio_hora_inicio,envio_hora_fin, envio_tipo_envio)
- SELECT 
-  [ENVIO_FECHA_PROGAMADA],
-  [ENVIO_FECHA_ENTREGA],
-  [ENVIO_COSTO],
-  [ENVIO_HORA_INICIO],
-  [ENVIO_HORA_FIN_INICIO],
-  (SELECT tipo_envio_codigo from LOS_ANTI_PALA.Tipo_Envio
-  WHERE LOS_ANTI_PALA.Tipo_Envio.tipo_envio_descripcion =  [GD2C2024].[gd_esquema].[Maestra].[ENVIO_TIPO]
-  )
-
-  FROM
-  [GD2C2024].[gd_esquema].[Maestra] 
-
-  GO
-
-DECLARE @TempUsuario TABLE (
-    usuario_codigo BIGINT,
-    usuario_nombre NVARCHAR(255)
-);
-
-WITH UsuariosConNumeracion AS (
-    SELECT 
-        m.CLI_USUARIO_NOMBRE,
-        m.CLI_USUARIO_PASS,
-        m.CLI_USUARIO_FECHA_CREACION,
-        ROW_NUMBER() OVER (PARTITION BY m.CLI_USUARIO_NOMBRE ORDER BY m.CLI_USUARIO_NOMBRE) AS NombreDuplicado
-    FROM 
-        [GD2C2024].[gd_esquema].[Maestra] m
-    WHERE 
-        m.CLI_USUARIO_NOMBRE IS NOT NULL
-)
-
-INSERT INTO LOS_ANTI_PALA.Usuario (
-    usuario_nombre,
-    usuario_password,
-    usuario_fecha_creacion
-)
-OUTPUT inserted.usuario_codigo, inserted.usuario_nombre INTO @TempUsuario -- Capturar el usuario_codigo y usuario_nombre generados
-SELECT
-    CASE 
-        WHEN NombreDuplicado = 1 THEN u.CLI_USUARIO_NOMBRE -- Si no es duplicado, conservar el nombre original
-        ELSE CONCAT(u.CLI_USUARIO_NOMBRE, '_', CAST(NombreDuplicado AS NVARCHAR(10))) -- Si es duplicado, agregar un sufijo numérico
-    END AS usuario_nombre,
-    u.CLI_USUARIO_PASS,
-    u.CLI_USUARIO_FECHA_CREACION
-FROM 
-    UsuariosConNumeracion u;
-
-DECLARE @TempClienteNumeracion TABLE (
-    CLI_USUARIO_NOMBRE NVARCHAR(255),
-    CLIENTE_NOMBRE NVARCHAR(255),
-    CLIENTE_APELLIDO NVARCHAR(255),
-    CLIENTE_DNI NVARCHAR(50),
-    CLIENTE_MAIL NVARCHAR(255),
-    CLIENTE_FECHA_NAC DATE,
-    NombreDuplicado INT
-);
-
-INSERT INTO @TempClienteNumeracion
-SELECT 
-    m.CLI_USUARIO_NOMBRE,
-    m.CLIENTE_NOMBRE,
-    m.CLIENTE_APELLIDO,
-    m.CLIENTE_DNI,
-    m.CLIENTE_MAIL,
-    m.CLIENTE_FECHA_NAC,
-    ROW_NUMBER() OVER (PARTITION BY m.CLI_USUARIO_NOMBRE ORDER BY m.CLI_USUARIO_NOMBRE) AS NombreDuplicado
-FROM 
-    [GD2C2024].[gd_esquema].[Maestra] m
-WHERE 
-    m.CLI_USUARIO_NOMBRE IS NOT NULL;
-
--- Insertar los datos en la tabla Cliente usando los códigos de usuario recién creados
-INSERT INTO LOS_ANTI_PALA.Cliente (
-    usuario_codigo,
-    cliente_nombre,
-    cliente_apellido,
-    cliente_dni,
-    cliente_mail,
-    cliente_fecha_nac
-)
-SELECT 
-    tu.usuario_codigo, -- Usamos el código recién creado de la tabla temporal
-    tc.CLIENTE_NOMBRE,
-    tc.CLIENTE_APELLIDO,
-    tc.CLIENTE_DNI,
-    tc.CLIENTE_MAIL,
-    tc.CLIENTE_FECHA_NAC
-FROM 
-    @TempClienteNumeracion tc
-    JOIN @TempUsuario tu ON 
-        CASE 
-            WHEN tc.NombreDuplicado = 1 THEN tc.CLI_USUARIO_NOMBRE
-            ELSE CONCAT(tc.CLI_USUARIO_NOMBRE, '_', CAST(tc.NombreDuplicado AS NVARCHAR(10)))
-        END = tu.usuario_nombre
-WHERE 
-    tc.CLI_USUARIO_NOMBRE IS NOT NULL
-
-
-	-- ELIMINAR CLIENTES CON EL MISMO DNI
-GO
-
-WITH Duplicados AS (
-    SELECT 
-        cliente_dni,
-        MIN(usuario_codigo) AS codigo_a_conservar 
-    FROM 
-        LOS_ANTI_PALA.Cliente
-    GROUP BY 
-        cliente_dni
-    HAVING 
-        COUNT(*) > 1 
-)
-
-
-DELETE FROM LOS_ANTI_PALA.Cliente
-WHERE usuario_codigo IN (
-    SELECT c.usuario_codigo
-    FROM LOS_ANTI_PALA.Cliente c
-    JOIN Duplicados d ON c.cliente_dni = d.cliente_dni
-    WHERE c.usuario_codigo != d.codigo_a_conservar 
-);
-
-DELETE FROM LOS_ANTI_PALA.Usuario
-WHERE usuario_codigo NOT IN (SELECT usuario_codigo FROM LOS_ANTI_PALA.Cliente);
-
-GO
-
-GO
-INSERT INTO LOS_ANTI_PALA.Modelo(modelo_codigo, modelo_descripcion)
-SELECT 
-				[PRODUCTO_MOD_CODIGO],
-			    [PRODUCTO_MOD_DESCRIPCION]
-
-FROM [GD2C2024].[gd_esquema].[Maestra] WHERE [PRODUCTO_MOD_DESCRIPCION] IS NOT NULL
-GROUP BY [PRODUCTO_MOD_CODIGO],[PRODUCTO_MOD_DESCRIPCION] ;
-GO
-
-GO
-
-INSERT INTO LOS_ANTI_PALA.Marca(marca_descripcion)
-SELECT 
-				[PRODUCTO_MARCA]
-				
-
-FROM [GD2C2024].[gd_esquema].[Maestra] WHERE [PRODUCTO_MARCA] IS NOT NULL
-GROUP BY [PRODUCTO_MARCA];
-GO
-
-
-  
