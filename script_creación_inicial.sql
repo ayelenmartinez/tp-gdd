@@ -779,6 +779,7 @@ EXEC migrar_tabla_vendedor;
 EXEC migrar_tabla_publicacion;
 EXEC migrar_tabla_cliente;
 EXEC migrar_tabla_venta;
+EXEC migrar_tabla_detalle_venta;
 EXEC migrar_tabla_modelo;
 EXEC migrar_tabla_marca;
 EXEC migrar_tabla_almacen;
