@@ -106,7 +106,7 @@ CREATE TABLE LOS_ANTI_PALA.Domicilio_por_usuario (
 )
 
 CREATE TABLE LOS_ANTI_PALA.Publicacion (
-	publicacion_codigo DECIMAL(18,0) IDENTITY(1,1) PRIMARY KEY,
+	publicacion_codigo DECIMAL(18,0) PRIMARY KEY,
 	publicacion_descripcion NVARCHAR(50) NOT NULL,
 	publicacion_stock DECIMAL(18,0) NOT NULL,
 	publicacion_precio DECIMAL(18,2) NOT NULL DEFAULT 0,
@@ -404,23 +404,33 @@ GO
 
 ---------- Fin migracion Provincia ----------
 
-/*
-INSERT INTO LOS_ANTI_PALA.Publicacion(publicacion_descripcion,publicacion_stock,publicacion_precio,publicacion_costo,producto_porcejtane_venta,publicacion_fecha)
 
-SELECT 
-[PUBLICACION_DESCRIPCION],
-[PUBLICACION_STOCK],
-[PUBLICACION_FECHA],
-[PUBLICACION_PRECIO],
-[PUBLICACION_COSTO],
-[PUBLICACION_PORC_VENTA],
-(SELECT usuario_codigo FROM LOS_ANTI_PALA.Usuario
-WHERE LOS_ANTI_PALA.Usuario.usuario_codigo = [GD2C2024].[gd_esquema].[Maestra].[usuario_codigo]
-)
-FROM [GD2C2024].[gd_esquema].[Maestra]
-
-GO*/
-
+---------- Migracion Publicacion ----------
+IF OBJECT_ID('migrar_tabla_publicacion', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_publicacion;
+GO
+CREATE PROCEDURE migrar_tabla_publicacion
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.Publicacion(publicacion_codigo, publicacion_descripcion,
+	publicacion_stock, publicacion_precio,publicacion_costo,producto_porcejtane_venta,
+	publicacion_fecha,usuario_codigo)
+	SELECT DISTINCT 
+		[PUBLICACION_CODIGO],
+		[PUBLICACION_DESCRIPCION],
+		[PUBLICACION_STOCK],
+		[PUBLICACION_PRECIO],
+		[PUBLICACION_COSTO],
+		[PUBLICACION_PORC_VENTA],
+		[PUBLICACION_FECHA],
+		usuario_codigo 
+	FROM [GD2C2024].[gd_esquema].[Maestra] m
+		JOIN LOS_ANTI_PALA.Vendedor V 
+		ON v.vendedor_cuit =  m.VENDEDOR_CUIT AND v.vendedor_razon_social = m.VENDEDOR_RAZON_SOCIAl			 
+	PRINT ('Tabla "Publicacion" migrada')
+END
+GO
+---------- Migracion Publicacion ----------
 
 ---------- Migracion Concepto Factura ----------
 
@@ -524,10 +534,36 @@ AS
 				c.cliente_dni = m.CLIENTE_DNI 
 			AND c.cliente_nombre = m.CLIENTE_NOMBRE 
 			AND c.cliente_apellido = m.CLIENTE_APELLIDO
+		PRINT('Tabla "Venta" migrada')
 	END
 GO 
 
 ---------- Fin migracion Venta ----------
+
+---------- Migracion Detalle venta ----------
+
+IF OBJECT_ID('migrar_tabla_detalle_venta', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_detalle_venta;
+GO
+CREATE PROCEDURE migrar_tabla_detalle_venta
+AS
+	BEGIN
+		INSERT INTO LOS_ANTI_PALA.Detalle_de_venta(detalle_venta_cantidad, 
+		detalle_venta_precio, detalle_venta_subtotal, venta_codigo, publicacion_codigo)
+		SELECT DISTINCT 
+			VENTA_DET_CANT,
+			VENTA_DET_PRECIO,
+			VENTA_DET_SUB_TOTAL,
+			VENTA_CODIGO,
+			PUBLICACION_CODIGO
+		FROM gd_esquema.Maestra 
+		WHERE VENTA_CODIGO IS NOT NULL
+		PRINT('Tabla "Detalle venta" migrada')
+	END
+GO 
+
+---------- Fin migracion Detalle venta ----------
+
 
 
 ---------- Migracion Envio ----------
@@ -647,10 +683,10 @@ AS
 			[CLIENTE_APELLIDO],
 			[CLIENTE_DNI],
 			[CLIENTE_FECHA_NAC]
-		FROM [GD2C2024].[gd_esquema].[Maestra] JOIN LOS_ANTI_PALA.Usuario 
-						ON CLIENTE_MAIL = usuario_mail AND
-						CLI_USUARIO_NOMBRE = usuario_nombre AND
-						CLI_USUARIO_FECHA_CREACION = usuario_fecha_creacion
+		FROM [GD2C2024].[gd_esquema].[Maestra] m JOIN LOS_ANTI_PALA.Usuario u
+						ON m.CLIENTE_MAIL = u.usuario_mail AND
+						m.CLI_USUARIO_NOMBRE = u.usuario_nombre AND
+						m.CLI_USUARIO_FECHA_CREACION = u.usuario_fecha_creacion
 		PRINT('Tabla "Cliente" migrada')
 	END
 GO
@@ -740,6 +776,7 @@ EXEC migrar_tabla_tipo_envio;
 EXEC migrar_tabla_envio;
 EXEC migrar_tabla_usuario;
 EXEC migrar_tabla_vendedor;
+EXEC migrar_tabla_publicacion;
 EXEC migrar_tabla_cliente;
 EXEC migrar_tabla_venta;
 EXEC migrar_tabla_modelo;
