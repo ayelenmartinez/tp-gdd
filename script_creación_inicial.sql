@@ -953,14 +953,13 @@ GO
 
 
 ------------------- Fin creacion de procedures -------------------
-select*from [LOS_ANTI_PALA].Domicilio_por_usuario
+
 ------------------- Ejecucion de procedures -------------------
 GO
 
 BEGIN TRANSACTION
 BEGIN TRY
 EXEC migrar_tabla_domicilio;
-EXEC migrar_tabla_domicilio_por_usuario;
 EXEC migrar_tabla_medio_de_pago;
 EXEC migrar_tabla_pago;
 EXEC migrar_tabla_detalle_de_pago;
@@ -974,6 +973,7 @@ EXEC migrar_tabla_usuario;
 EXEC migrar_tabla_vendedor;
 EXEC migrar_tabla_publicacion;
 EXEC migrar_tabla_cliente;
+EXEC migrar_tabla_domicilio_por_usuario;
 EXEC migrar_tabla_venta;
 EXEC migrar_tabla_modelo;
 EXEC migrar_tabla_marca;
