@@ -57,13 +57,6 @@ CREATE TABLE LOS_ANTI_PALA.Usuario (
 	usuario_nombre VARCHAR(50) NOT NULL,
 	usuario_password VARCHAR(50) NOT NULL,
 	usuario_fecha_creacion DATE,
-	usuario_calle NVARCHAR(50),
-	usuario_nro_calle DECIMAL(18,0),
-	usuario_piso DECIMAL(18,0),
-	usuario_depto NVARCHAR(50),
-	usuario_cp NVARCHAR(50),
-	usuario_localidad NVARCHAR(50),
-	usuario_provincia NVARCHAR(50),
 	usuario_mail NVARCHAR(50),
 )
 
@@ -72,13 +65,13 @@ CREATE TABLE LOS_ANTI_PALA.Cliente (
 	cliente_nombre NVARCHAR(50) NOT NULL,
 	cliente_apellido NVARCHAR(50) NOT NULL,
 	cliente_dni DECIMAL(18,0) CONSTRAINT unique_cliente_dni NOT NULL,
-	cliente_fecha_nac DATE NOT NULL,
+	cliente_fecha_nac DATE NOT NULL
 )
 
 CREATE TABLE LOS_ANTI_PALA.Vendedor (
 	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Usuario PRIMARY KEY,
 	vendedor_cuit NVARCHAR(50) CONSTRAINT unique_vendedor_cuit UNIQUE NOT NULL,
-	vendedor_razon_social NVARCHAR(50) NOT NULL,
+	vendedor_razon_social NVARCHAR(50) NOT NULL
 )
 
 
@@ -279,12 +272,80 @@ BEGIN
 			 CLI_USUARIO_DOMICILIO_LOCALIDAD,
 			 CLI_USUARIO_DOMICILIO_PROVINCIA,
 			 CLI_USUARIO_DOMICILIO_PISO,
-			 CLI_USUARIO_DOMICILIO_DEPTO;
+			 CLI_USUARIO_DOMICILIO_DEPTO
+				
+	UNION 
+		SELECT 
+			[VEN_USUARIO_DOMICILIO_CALLE],
+			[VEN_USUARIO_DOMICILIO_NRO_CALLE],
+			[VEN_USUARIO_DOMICILIO_CP],
+			[VEN_USUARIO_DOMICILIO_LOCALIDAD],
+			[VEN_USUARIO_DOMICILIO_PROVINCIA],
+			[VEN_USUARIO_DOMICILIO_PISO],
+			[VEN_USUARIO_DOMICILIO_DEPTO]
+		FROM [GD2C2024].[gd_esquema].[Maestra] 
+		WHERE VEN_USUARIO_DOMICILIO_CALLE IS NOT NULL
+		GROUP BY 
+			[VEN_USUARIO_DOMICILIO_CALLE],
+			[VEN_USUARIO_DOMICILIO_NRO_CALLE],
+			[VEN_USUARIO_DOMICILIO_CP],
+			[VEN_USUARIO_DOMICILIO_LOCALIDAD],
+			[VEN_USUARIO_DOMICILIO_PROVINCIA],
+			[VEN_USUARIO_DOMICILIO_PISO],
+			[VEN_USUARIO_DOMICILIO_DEPTO];
 	PRINT('Tabla "Domicilio" migrada')
 END
 GO
 ---------- Fin Migracion Domiciio ----------
 
+---------- Migracion Domicilio por usuario-----
+
+IF OBJECT_ID('migrar_tabla_domicilio_por_usuario', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_domicilio_por_usuario;
+GO
+CREATE PROCEDURE migrar_tabla_domicilio_por_usuario
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.Domicilio_por_usuario (
+            usuario_codigo, domicilio_codigo
+        )
+       SELECT DISTINCT 
+    u.usuario_codigo, 
+    d.domicilio_codigo
+FROM [GD2C2024].[gd_esquema].[Maestra] AS m
+INNER JOIN LOS_ANTI_PALA.Usuario AS u
+    ON u.usuario_mail = m.CLIENTE_MAIL
+INNER JOIN LOS_ANTI_PALA.Domicilio AS d
+    ON d.domicilio_calle = m.CLI_USUARIO_DOMICILIO_CALLE
+       AND d.domicilio_nro_calle = m.CLI_USUARIO_DOMICILIO_NRO_CALLE
+       AND d.domicilio_codigo_postal = m.CLI_USUARIO_DOMICILIO_CP
+       AND d.domicilio_localidad = m.CLI_USUARIO_DOMICILIO_LOCALIDAD
+       AND d.domicilio_provincia = m.CLI_USUARIO_DOMICILIO_PROVINCIA
+       AND d.domicilio_piso = m.CLI_USUARIO_DOMICILIO_PISO
+       AND d.domicilio_depto = m.CLI_USUARIO_DOMICILIO_DEPTO;
+
+	INSERT INTO LOS_ANTI_PALA.Domicilio_por_usuario (
+    usuario_codigo, domicilio_codigo
+)
+SELECT DISTINCT 
+    u.usuario_codigo, 
+    d.domicilio_codigo
+FROM [GD2C2024].[gd_esquema].[Maestra] AS m
+INNER JOIN LOS_ANTI_PALA.Usuario AS u
+    ON u.usuario_mail = m.VENDEDOR_MAIL
+INNER JOIN LOS_ANTI_PALA.Domicilio AS d
+    ON d.domicilio_calle = m.VEN_USUARIO_DOMICILIO_CALLE
+       AND d.domicilio_nro_calle = m.CLI_USUARIO_DOMICILIO_NRO_CALLE
+       AND d.domicilio_codigo_postal = m.VEN_USUARIO_DOMICILIO_CP
+       AND d.domicilio_localidad = m.VEN_USUARIO_DOMICILIO_LOCALIDAD
+       AND d.domicilio_provincia = m.VEN_USUARIO_DOMICILIO_PROVINCIA
+       AND d.domicilio_piso = m.VEN_USUARIO_DOMICILIO_PISO
+       AND d.domicilio_depto = m.VEN_USUARIO_DOMICILIO_DEPTO;
+
+END
+GO
+
+---------- Fin Migracion Domicilio por usuario-----
 
 ---------- Migracion Medio de pago ----------
 
@@ -604,22 +665,13 @@ CREATE PROCEDURE migrar_tabla_usuario
 AS
 	BEGIN
 		INSERT INTO LOS_ANTI_PALA.Usuario (
-			usuario_nombre, usuario_password, usuario_fecha_creacion,  
-			usuario_calle, usuario_nro_calle, usuario_piso,
-			usuario_depto, usuario_cp, usuario_localidad, usuario_provincia, usuario_mail
-			)
+			usuario_nombre, usuario_password, usuario_fecha_creacion,usuario_mail)
 		SELECT DISTINCT
 			[CLI_USUARIO_NOMBRE],
 			[CLI_USUARIO_PASS],
 			[CLI_USUARIO_FECHA_CREACION],
-			[CLI_USUARIO_DOMICILIO_CALLE],
-			[CLI_USUARIO_DOMICILIO_NRO_CALLE],
-			[CLI_USUARIO_DOMICILIO_PISO],
-			[CLI_USUARIO_DOMICILIO_DEPTO],
-			[CLI_USUARIO_DOMICILIO_CP],
-			[CLI_USUARIO_DOMICILIO_LOCALIDAD],
-			[CLI_USUARIO_DOMICILIO_PROVINCIA],
 			[CLIENTE_MAIL]
+
 		FROM [GD2C2024].[gd_esquema].[Maestra] 
 		WHERE [CLI_USUARIO_NOMBRE] IS NOT NULL 
 		UNION
@@ -627,13 +679,6 @@ AS
 			[VEN_USUARIO_NOMBRE],
 			[VEN_USUARIO_PASS],
 			[VEN_USUARIO_FECHA_CREACION],
-			[VEN_USUARIO_DOMICILIO_CALLE],
-			[VEN_USUARIO_DOMICILIO_NRO_CALLE],
-			[VEN_USUARIO_DOMICILIO_PISO],
-			[VEN_USUARIO_DOMICILIO_DEPTO],
-			[VEN_USUARIO_DOMICILIO_CP],
-			[VEN_USUARIO_DOMICILIO_LOCALIDAD],
-			[VEN_USUARIO_DOMICILIO_PROVINCIA],
 			[VENDEDOR_MAIL]
 		FROM [GD2C2024].[gd_esquema].[Maestra] 
 		WHERE [VEN_USUARIO_NOMBRE] IS NOT NULL
@@ -758,13 +803,14 @@ GO
 
 
 ------------------- Fin creacion de procedures -------------------
-
+select*from [LOS_ANTI_PALA].Domicilio_por_usuario
 ------------------- Ejecucion de procedures -------------------
 GO
 
 BEGIN TRANSACTION
 BEGIN TRY
 EXEC migrar_tabla_domicilio;
+EXEC migrar_tabla_domicilio_por_usuario;
 EXEC migrar_tabla_medio_de_pago;
 EXEC migrar_tabla_pago;
 EXEC migrar_tabla_detalle_de_pago;
@@ -779,7 +825,6 @@ EXEC migrar_tabla_vendedor;
 EXEC migrar_tabla_publicacion;
 EXEC migrar_tabla_cliente;
 EXEC migrar_tabla_venta;
-EXEC migrar_tabla_detalle_venta;
 EXEC migrar_tabla_modelo;
 EXEC migrar_tabla_marca;
 EXEC migrar_tabla_almacen;
@@ -793,4 +838,3 @@ ROLLBACK TRANSACTION;
 END CATCH
 
 ------------------- Fin ejecucion de procedures -------------------
-
