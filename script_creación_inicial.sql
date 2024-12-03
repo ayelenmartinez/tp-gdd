@@ -219,19 +219,24 @@ CREATE TABLE LOS_ANTI_PALA.Concepto_factura (
 	concepto_factura_tipo NVARCHAR(50) NOT NULL
 )
 
-CREATE TABLE LOS_ANTI_PALA.Detalle_factura (
-	detalle_factura_cantidad DECIMAL(18,0) NOT NULL,
-	concepto_factura_codigo BIGINT REFERENCES LOS_ANTI_PALA.Concepto_factura NOT NULL,
-	detalle_factura_precio DECIMAL(18,0) NOT NULL,
-	detalle_factura_subtotal DECIMAL(18,0) NOT NULL
-)
-
 CREATE TABLE LOS_ANTI_PALA.Factura (
-	factura_numero DECIMAL(18,0) IDENTITY(1,1) PRIMARY KEY,
+	factura_numero DECIMAL(18,0) PRIMARY KEY,
 	factura_fecha DATE NOT NULL,
 	factura_total DECIMAL(8,0) NOT NULL DEFAULT 0,
 	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Usuario NOT NULL,
 )
+
+CREATE TABLE LOS_ANTI_PALA.Detalle_factura (
+	detalle_factura_codigo BIGINT IDENTITY (1,1) PRIMARY KEY,
+	detalle_factura_cantidad DECIMAL(18,0) NOT NULL,
+	detalle_factura_precio DECIMAL(18,0) NOT NULL,
+	detalle_factura_subtotal DECIMAL(18,0) NOT NULL,
+	concepto_factura_codigo BIGINT REFERENCES LOS_ANTI_PALA.Concepto_factura NOT NULL,
+	publicacion_codigo DECIMAL (18,0) REFERENCES LOS_ANTI_PALA.Publicacion NOT NULL,
+	factura_numero DECIMAL (18,0) REFERENCES LOS_ANTI_PALA.Factura NOT NULL,
+)
+
+
 
 ------------------------------------------------------------ FIN CREACION DE TABLAS ------------------------------------------------------------
 
@@ -342,6 +347,7 @@ INNER JOIN LOS_ANTI_PALA.Domicilio AS d
        AND d.domicilio_piso = m.VEN_USUARIO_DOMICILIO_PISO
        AND d.domicilio_depto = m.VEN_USUARIO_DOMICILIO_DEPTO;
 
+	   PRINT('Tabla "Domicilio por usuario" migrada')
 END
 GO
 
@@ -493,29 +499,6 @@ END
 GO
 ---------- Migracion Publicacion ----------
 
----------- Migracion Concepto Factura ----------
-
-GO
-IF OBJECT_ID('migrar_tabla_concepto_factura', 'P') IS NOT NULL
-    DROP PROCEDURE migrar_tabla_concepto_factura;
-
-GO
-CREATE PROCEDURE migrar_tabla_concepto_factura
-AS
-BEGIN
-	INSERT INTO LOS_ANTI_PALA.Concepto_factura(concepto_factura_tipo)
-	SELECT 
-		FACTURA_DET_TIPO
-	FROM [GD2C2024].[gd_esquema].[Maestra] 
-	GROUP BY FACTURA_DET_TIPO 
-	HAVING FACTURA_DET_TIPO IS NOT NULL;
-	PRINT('Tabla "Concepto facutra" migrada')
-END
-GO
----------- Fin migracion Concepto Factura ----------
-
-
-
 ---------- Migracion Rubro y Subrubro ----------
 
 IF OBJECT_ID('migrar_tabla_rubro_y_subrubro', 'P') IS NOT NULL
@@ -602,7 +585,6 @@ GO
 ---------- Fin migracion Venta ----------
 
 ---------- Migracion Detalle venta ----------
-
 IF OBJECT_ID('migrar_tabla_detalle_venta', 'P') IS NOT NULL
     DROP PROCEDURE migrar_tabla_detalle_venta;
 GO
@@ -800,6 +782,8 @@ AS
 GO
 
 -------- Fin migracion Almacen ----------
+
+
 -------- Migracion Producto ----------
 IF OBJECT_ID('migrar_tabla_producto', 'P') IS NOT NULL
     DROP PROCEDURE migrar_tabla_producto;
@@ -845,111 +829,71 @@ BEGIN
 END
 GO
 -------- Fin migracion Producto ----------
--------- Migracion Factura ----------
-	    IF OBJECT_ID('migrar_tabla_factura', 'P') IS NOT NULL
+
+---------- Migracion Factura ----------
+IF OBJECT_ID('migrar_tabla_factura', 'P') IS NOT NULL
     DROP PROCEDURE migrar_tabla_factura;
 GO
-
 CREATE PROCEDURE migrar_tabla_factura
 AS
-BEGIN
-    -- Primero insertamos los conceptos de factura
-    INSERT INTO LOS_ANTI_PALA.Concepto_factura (concepto_factura_tipo)
-    SELECT DISTINCT FACTURA_DET_TIPO
-    FROM [GD2C2024].[gd_esquema].[Maestra]
-    WHERE FACTURA_DET_TIPO IS NOT NULL
-    AND NOT EXISTS (
-        SELECT 1 
-        FROM LOS_ANTI_PALA.Concepto_factura cf 
-        WHERE cf.concepto_factura_tipo = FACTURA_DET_TIPO
-    );
-
-    -- Luego insertamos las facturas
-    INSERT INTO LOS_ANTI_PALA.Factura (
-        factura_numero,
-        factura_fecha,
-        factura_total,
-        usuario_codigo
-    )
-    SELECT DISTINCT
-        M.FACTURA_NUMERO,
-        M.FACTURA_FECHA,
-        M.FACTURA_TOTAL,
-        U.usuario_codigo
-    FROM [GD2C2024].[gd_esquema].[Maestra] M
-    INNER JOIN LOS_ANTI_PALA.Usuario U ON 
-        (U.usuario_nombre = M.CLI_USUARIO_NOMBRE OR U.usuario_nombre = M.VEN_USUARIO_NOMBRE)
-    WHERE M.FACTURA_NUMERO IS NOT NULL
-    AND M.FACTURA_FECHA IS NOT NULL
-    AND M.FACTURA_TOTAL IS NOT NULL;
-
-    -- Finalmente insertamos los detalles de factura
-    INSERT INTO LOS_ANTI_PALA.Detalle_factura (
-        detalle_factura_cantidad,
-        concepto_factura_codigo,
-        detalle_factura_precio,
-        detalle_factura_subtotal
-    )
-    SELECT 
-        M.FACTURA_DET_CANTIDAD,
-        CF.concepto_factura_codigo,
-        M.FACTURA_DET_PRECIO,
-        M.FACTURA_DET_SUBTOTAL
-    FROM [GD2C2024].[gd_esquema].[Maestra] M
-    INNER JOIN LOS_ANTI_PALA.Concepto_factura CF ON CF.concepto_factura_tipo = M.FACTURA_DET_TIPO
-    WHERE M.FACTURA_DET_CANTIDAD IS NOT NULL
-    AND M.FACTURA_DET_TIPO IS NOT NULL
-    AND M.FACTURA_DET_PRECIO IS NOT NULL
-    AND M.FACTURA_DET_SUBTOTAL IS NOT NULL;
-
-    PRINT('Tablas "Factura", "Concepto_factura" y "Detalle_factura" migradas')
-END
+    BEGIN
+        INSERT INTO LOS_ANTI_PALA.Factura(factura_numero, factura_fecha, factura_total, usuario_codigo)
+		SELECT DISTINCT
+			m.FACTURA_NUMERO,
+			m.FACTURA_FECHA,
+			m.FACTURA_TOTAL,
+			p.usuario_codigo
+		FROM [GD2C2024].[gd_esquema].[Maestra] m JOIN LOS_ANTI_PALA.Publicacion p 
+			ON m.PUBLICACION_CODIGO = p.publicacion_codigo
+		WHERE m.FACTURA_NUMERO IS NOT NULL
+        PRINT('Tabla "Factura" migrada')
+    END
 GO
 -------- Fin migracion Factura ----------
--------- migracion Detalle Factura ----------
+
+
+---------- Migracion Concepto Factura ----------
+IF OBJECT_ID('migrar_tabla_concepto_factura', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_concepto_factura;
+GO
+CREATE PROCEDURE migrar_tabla_concepto_factura
+AS
+    BEGIN
+        INSERT INTO LOS_ANTI_PALA.Concepto_factura(concepto_factura_tipo)
+		SELECT DISTINCT
+			FACTURA_DET_TIPO
+		FROM [GD2C2024].[gd_esquema].[Maestra] 
+		WHERE FACTURA_DET_TIPO IS NOT NULL
+        PRINT('Tabla "Concepto factura" migrada')
+    END
+GO
+-------- Fin migracion Concepto Factura ----------
+
+
+---------- Migracion Detalle Factura ----------
 IF OBJECT_ID('migrar_tabla_detalle_factura', 'P') IS NOT NULL
     DROP PROCEDURE migrar_tabla_detalle_factura;
 GO
-
 CREATE PROCEDURE migrar_tabla_detalle_factura
 AS
-BEGIN
-    -- Primero nos aseguramos que existan los conceptos de factura
-    INSERT INTO LOS_ANTI_PALA.Concepto_factura (concepto_factura_tipo)
-    SELECT DISTINCT FACTURA_DET_TIPO
-    FROM [GD2C2024].[gd_esquema].[Maestra]
-    WHERE FACTURA_DET_TIPO IS NOT NULL
-    AND NOT EXISTS (
-        SELECT 1 
-        FROM LOS_ANTI_PALA.Concepto_factura cf 
-        WHERE cf.concepto_factura_tipo = FACTURA_DET_TIPO
-    );
-
-    -- Luego insertamos los detalles de factura
-    INSERT INTO LOS_ANTI_PALA.Detalle_factura (
-        detalle_factura_cantidad,
-        concepto_factura_codigo,
-        detalle_factura_precio,
-        detalle_factura_subtotal
-    )
-    SELECT DISTINCT
-        M.FACTURA_DET_CANTIDAD,
-        CF.concepto_factura_codigo,
-        M.FACTURA_DET_PRECIO,
-        M.FACTURA_DET_SUBTOTAL
-    FROM [GD2C2024].[gd_esquema].[Maestra] M
-    INNER JOIN LOS_ANTI_PALA.Concepto_factura CF 
-        ON CF.concepto_factura_tipo = M.FACTURA_DET_TIPO
-    WHERE M.FACTURA_DET_CANTIDAD IS NOT NULL
-        AND M.FACTURA_DET_TIPO IS NOT NULL
-        AND M.FACTURA_DET_PRECIO IS NOT NULL
-        AND M.FACTURA_DET_SUBTOTAL IS NOT NULL
-        AND M.FACTURA_NUMERO IS NOT NULL;
-
-    PRINT('Tabla "Detalle_factura" migrada')
-END
+    BEGIN
+        INSERT INTO LOS_ANTI_PALA.Detalle_factura(detalle_factura_cantidad, detalle_factura_precio,
+					detalle_factura_subtotal, factura_numero, publicacion_codigo, concepto_factura_codigo)
+		SELECT DISTINCT
+			m.FACTURA_DET_CANTIDAD,
+			m.FACTURA_DET_PRECIO,
+			m.FACTURA_DET_SUBTOTAL,
+			m.FACTURA_NUMERO,
+			m.PUBLICACION_CODIGO,
+			c.concepto_factura_codigo
+		FROM [GD2C2024].[gd_esquema].[Maestra] m JOIN LOS_ANTI_PALA.Concepto_factura c 
+			ON m.FACTURA_DET_TIPO = c.concepto_factura_tipo
+		WHERE FACTURA_DET_TIPO IS NOT NULL
+        PRINT('Tabla "Detalle factura" migrada')
+    END
 GO
--------- Fin migracion Detalle Factura ----------
+-------- Fin Detalle Factura ----------
+
 
 
 ------------------- Fin creacion de procedures -------------------
@@ -960,24 +904,28 @@ GO
 BEGIN TRANSACTION
 BEGIN TRY
 EXEC migrar_tabla_domicilio;
-EXEC migrar_tabla_medio_de_pago;
-EXEC migrar_tabla_pago;
+EXEC migrar_tabla_medio_de_pago
 EXEC migrar_tabla_detalle_de_pago;
+EXEC migrar_tabla_pago;
 EXEC migrar_tabla_localidad;
 EXEC migrar_tabla_provincia;
-EXEC migrar_tabla_concepto_factura;
 EXEC migrar_tabla_rubro_y_subrubro;
 EXEC migrar_tabla_tipo_envio;
-EXEC migrar_tabla_envio;
 EXEC migrar_tabla_usuario;
 EXEC migrar_tabla_vendedor;
 EXEC migrar_tabla_publicacion;
 EXEC migrar_tabla_cliente;
 EXEC migrar_tabla_domicilio_por_usuario;
 EXEC migrar_tabla_venta;
+EXEC migrar_tabla_detalle_venta;
+EXEC migrar_tabla_envio;
 EXEC migrar_tabla_modelo;
 EXEC migrar_tabla_marca;
 EXEC migrar_tabla_almacen;
+EXEC migrar_tabla_factura;
+EXEC migrar_tabla_concepto_factura;
+EXEC migrar_tabla_detalle_factura;
+
 	PRINT '--- Todas las tablas fueron migradas correctamente --';
 COMMIT TRANSACTION
 END TRY
