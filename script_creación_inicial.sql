@@ -149,18 +149,15 @@ CREATE TABLE LOS_ANTI_PALA.Subrubro (
 )
 
 CREATE TABLE LOS_ANTI_PALA.Producto (
-	producto_codigo NVARCHAR(50) PRIMARY KEY,
+	producto_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
+	producto_numero NVARCHAR(50),
 	producto_descripcion NVARCHAR(50) NOT NULL,
 	producto_precio DECIMAL(18,2) NOT NULL DEFAULT 0,
 	marca_codigo BIGINT REFERENCES LOS_ANTI_PALA.Marca NOT NULL,
 	modelo_codigo DECIMAL(18,0) REFERENCES LOS_ANTI_PALA.Modelo NOT NULL,
+	subrubro_codigo DECIMAL (18,0) REFERENCES LOS_ANTI_PALA.Subrubro NOT NULL,
 )
 
-CREATE TABLE LOS_ANTI_PALA.Producto_por_subrubro (
-	PRIMARY KEY (subrubro_codigo, producto_codigo),
-    subrubro_codigo DECIMAL(18,0) NOT NULL REFERENCES LOS_ANTI_PALA.Subrubro,
-    producto_codigo NVARCHAR(50) NOT NULL REFERENCES LOS_ANTI_PALA.Producto,
-)
 
 CREATE TABLE LOS_ANTI_PALA.Medio_de_pago (
 	medio_pago_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
@@ -499,44 +496,45 @@ END
 GO
 ---------- Migracion Publicacion ----------
 
----------- Migracion Rubro y Subrubro ----------
+---------- Migracion Rubro ----------
 
-IF OBJECT_ID('migrar_tabla_rubro_y_subrubro', 'P') IS NOT NULL
-    DROP PROCEDURE migrar_tabla_rubro_y_subrubro;
+IF OBJECT_ID('migrar_tabla_rubro', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_rubro;
 GO
-CREATE PROCEDURE migrar_tabla_rubro_y_subrubro
+CREATE PROCEDURE migrar_tabla_rubro
 AS
 BEGIN
 	INSERT INTO LOS_ANTI_PALA.Rubro(rubro_descripcion)
-	SELECT 
+	SELECT DISTINCT
 		[PRODUCTO_RUBRO_DESCRIPCION]
-
 	FROM [GD2C2024].[gd_esquema].[Maestra] 
-	GROUP BY [PRODUCTO_RUBRO_DESCRIPCION] 
-	HAVING [PRODUCTO_RUBRO_DESCRIPCION] IS NOT NULL;
-
-	WITH CTE AS (
-					SELECT 
-						PRODUCTO_SUB_RUBRO,
-						(	
-							SELECT rubro_codigo 
-							FROM LOS_ANTI_PALA.Rubro r 
-							WHERE PRODUCTO_RUBRO_DESCRIPCION = r.rubro_descripcion
-						) AS RUBRO_FK
-					FROM [GD2C2024].[gd_esquema].[Maestra] 
-					WHERE  PRODUCTO_SUB_RUBRO IS NOT NULL
-				)
-
-	INSERT INTO LOS_ANTI_PALA.Subrubro(subrubro_descripcion, rubro_codigo)
-	SELECT 
-		PRODUCTO_SUB_RUBRO,
-		RUBRO_FK
-	FROM CTE
-	GROUP BY PRODUCTO_SUB_RUBRO, RUBRO_FK
-	PRINT('Tablas "Rubro" y "Subrubro" migradas')
+	WHERE [PRODUCTO_RUBRO_DESCRIPCION] IS NOT NULL;
+	PRINT('Tabla "Rubro" migrada')
 END
 GO
----------- Fin migracion Rubro y Subrubro ----------
+---------- Fin migracion Rubro ----------
+
+
+---------- Migracion Subrubro ----------
+
+IF OBJECT_ID('migrar_tabla_subrubro', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_subrubro;
+GO
+CREATE PROCEDURE migrar_tabla_subrubro
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.Subrubro(subrubro_descripcion, rubro_codigo)
+	SELECT DISTINCT
+		m.[PRODUCTO_SUB_RUBRO],
+		r.rubro_codigo
+	FROM [GD2C2024].[gd_esquema].[Maestra] m 
+		JOIN LOS_ANTI_PALA.Rubro r
+		ON m.PRODUCTO_RUBRO_DESCRIPCION = r.rubro_descripcion
+	WHERE [PRODUCTO_RUBRO_DESCRIPCION] IS NOT NULL
+	PRINT('Tabla "Subrubro" migrada')
+END
+GO
+---------- Fin migracion Subrubro ----------
 
 
 
@@ -729,13 +727,12 @@ CREATE PROCEDURE migrar_tabla_modelo
 AS
 	BEGIN
 		INSERT INTO LOS_ANTI_PALA.Modelo(modelo_codigo, modelo_descripcion)
-		SELECT 
+		SELECT DISTINCT
 			[PRODUCTO_MOD_CODIGO],
 			[PRODUCTO_MOD_DESCRIPCION]
 
 		FROM [GD2C2024].[gd_esquema].[Maestra] 
 		WHERE [PRODUCTO_MOD_DESCRIPCION] IS NOT NULL
-		GROUP BY [PRODUCTO_MOD_CODIGO],[PRODUCTO_MOD_DESCRIPCION] ;
 		PRINT('Tabla "Modelo" migrada')
 	END
 GO
@@ -750,11 +747,10 @@ CREATE PROCEDURE migrar_tabla_marca
 AS
     BEGIN
         INSERT INTO LOS_ANTI_PALA.Marca(marca_descripcion)
-		SELECT 
+		SELECT DISTINCT
 			[PRODUCTO_MARCA]
 		FROM [GD2C2024].[gd_esquema].[Maestra] 
 		WHERE [PRODUCTO_MARCA] IS NOT NULL
-		GROUP BY [PRODUCTO_MARCA];
         PRINT('Tabla "Marca" migrada')
     END
 GO
@@ -788,43 +784,31 @@ GO
 IF OBJECT_ID('migrar_tabla_producto', 'P') IS NOT NULL
     DROP PROCEDURE migrar_tabla_producto;
 GO
-
 CREATE PROCEDURE migrar_tabla_producto
 AS
 BEGIN
-    -- Primero, asegurarnos de que la tabla Marca esté migrada con los datos de PRODUCTO_MARCA
-    INSERT INTO LOS_ANTI_PALA.Marca (marca_descripcion)
-    SELECT DISTINCT PRODUCTO_MARCA
-    FROM [GD2C2024].[gd_esquema].[Maestra]
-    WHERE PRODUCTO_MARCA IS NOT NULL
-    AND NOT EXISTS (
-        SELECT 1 
-        FROM LOS_ANTI_PALA.Marca m 
-        WHERE m.marca_descripcion = PRODUCTO_MARCA
-    );
-
-    -- Luego, migrar los productos
     INSERT INTO LOS_ANTI_PALA.Producto (
-        producto_codigo,
+        producto_numero,
         producto_descripcion,
         producto_precio,
         marca_codigo,
-        modelo_codigo
+        modelo_codigo,
+		subrubro_codigo
     )
     SELECT DISTINCT
-        M.PRODUCTO_CODIGO,
-        M.PRODUCTO_DESCRIPCION,
-        M.PRODUCTO_PRECIO,
-        MA.marca_codigo,
-        M.PRODUCTO_MOD_CODIGO
-    FROM [GD2C2024].[gd_esquema].[Maestra] M
-    INNER JOIN LOS_ANTI_PALA.Marca MA ON MA.marca_descripcion = M.PRODUCTO_MARCA
-    WHERE M.PRODUCTO_CODIGO IS NOT NULL
-    AND M.PRODUCTO_DESCRIPCION IS NOT NULL
-    AND M.PRODUCTO_PRECIO IS NOT NULL
-    AND M.PRODUCTO_MOD_CODIGO IS NOT NULL
-    AND M.PRODUCTO_MARCA IS NOT NULL;
-
+        m.PRODUCTO_CODIGO,
+        m.PRODUCTO_DESCRIPCION,
+        m.PRODUCTO_PRECIO,
+        ma.marca_codigo,
+        mo.modelo_codigo,
+		s.subrubro_codigo
+    FROM [GD2C2024].[gd_esquema].[Maestra] m
+     JOIN LOS_ANTI_PALA.Marca MA 
+		ON ma.marca_descripcion = m.PRODUCTO_MARCA
+	 JOIN LOS_ANTI_PALA.Modelo mo 
+		ON mo.modelo_descripcion = m.PRODUCTO_MOD_DESCRIPCION 
+	JOIN LOS_ANTI_PALA.Subrubro s
+		ON s.subrubro_descripcion = m.PRODUCTO_SUB_RUBRO
     PRINT('Tabla "Producto" migrada')
 END
 GO
@@ -900,16 +884,19 @@ GO
 
 ------------------- Ejecucion de procedures -------------------
 GO
-
 BEGIN TRANSACTION
 BEGIN TRY
 EXEC migrar_tabla_domicilio;
+EXEC migrar_tabla_modelo;
+EXEC migrar_tabla_marca;
+EXEC migrar_tabla_localidad;
+EXEC migrar_tabla_provincia;
+EXEC migrar_tabla_rubro;
+EXEC migrar_tabla_subrubro;
+EXEC migrar_tabla_producto;
 EXEC migrar_tabla_medio_de_pago
 EXEC migrar_tabla_detalle_de_pago;
 EXEC migrar_tabla_pago;
-EXEC migrar_tabla_localidad;
-EXEC migrar_tabla_provincia;
-EXEC migrar_tabla_rubro_y_subrubro;
 EXEC migrar_tabla_tipo_envio;
 EXEC migrar_tabla_usuario;
 EXEC migrar_tabla_vendedor;
@@ -919,13 +906,10 @@ EXEC migrar_tabla_domicilio_por_usuario;
 EXEC migrar_tabla_venta;
 EXEC migrar_tabla_detalle_venta;
 EXEC migrar_tabla_envio;
-EXEC migrar_tabla_modelo;
-EXEC migrar_tabla_marca;
 EXEC migrar_tabla_almacen;
 EXEC migrar_tabla_factura;
 EXEC migrar_tabla_concepto_factura;
 EXEC migrar_tabla_detalle_factura;
-
 	PRINT '--- Todas las tablas fueron migradas correctamente --';
 COMMIT TRANSACTION
 END TRY
