@@ -8,6 +8,7 @@ EXEC sp_MSforeachtable "ALTER TABLE ? NOCHECK CONSTRAINT ALL";
 IF OBJECT_ID('LOS_ANTI_PALA.BI_Hecho_publicacion', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.BI_Hecho_publicacion;
 IF OBJECT_ID('LOS_ANTI_PALA.BI_Hecho_Envio', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.BI_Hecho_Envio;
 IF OBJECT_ID('LOS_ANTI_PALA.BI_Hecho_Venta', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.BI_Hecho_Venta;
+IF OBJECT_ID('LOS_ANTI_PALA.BI_Hecho_Venta', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.BI_Hecho_Facturacion;
 
 IF OBJECT_ID('LOS_ANTI_PALA.BI_Marca', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.BI_Marca;
 IF OBJECT_ID('LOS_ANTI_PALA.BI_Rubro_Subrubro', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.BI_Rubro_Subrubro;
@@ -93,6 +94,12 @@ CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Envio (
 	tipo_envio_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tipo_envio NOT NULL,
 
 )
+
+CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Facturacion (
+    tiempo_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tiempo NOT NULL,
+    ubicacion_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Ubicacion NOT NULL,
+    
+);
 
 ------------------------------------------------------------ FIN CREACION DE TABLAS ------------------------------------------------------------
 
