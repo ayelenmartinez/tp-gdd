@@ -45,7 +45,7 @@ CREATE TABLE LOS_ANTI_PALA.BI_Rango_Etario (
 );
 
 CREATE TABLE LOS_ANTI_PALA.BI_Rango_Horario (
-	rango_horario_id BIGINT IDENTITY(1,1) PRIMARY KEY NOT NULL,
+	rango_horario_codigo BIGINT IDENTITY(1,1) PRIMARY KEY NOT NULL,
 	rango NVARCHAR(50),
 );
 
@@ -54,15 +54,15 @@ CREATE TABLE LOS_ANTI_PALA.BI_Tipo_Envio (
 	tipo_envio_descripcion NVARCHAR(100),
 );
 
-	CREATE TABLE LOS_ANTI_PALA.BI_Tipo_Medio_Pago (
+CREATE TABLE LOS_ANTI_PALA.BI_Tipo_Medio_Pago (
 	tipo_medio_pago_codigo BIGINT PRIMARY KEY NOT NULL,
 	tipo_medio_pago NVARCHAR(50),
 );
 
 CREATE TABLE LOS_ANTI_PALA.BI_Rubro_Subrubro (
 	rubro_subrubro_codigo BIGINT IDENTITY(1,1) PRIMARY KEY NOT NULL,
-	rubro NVARCHAR(50),
-	subrubro NVARCHAR(50),
+	rubro DECIMAL(18,0),
+	subrubro DECIMAL(18,0),
 );
 
 CREATE TABLE LOS_ANTI_PALA.BI_Marca (
@@ -94,12 +94,126 @@ CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Envio (
 
 )
 
-
 ------------------------------------------------------------ FIN CREACION DE TABLAS ------------------------------------------------------------
-
-
 
 
 
 ------------------------------------------------------------ MIGRACION DE TABLAS ------------------------------------------------------------
 
+
+IF OBJECT_ID('migrar_tabla_bi_rango_etario', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_bi_rango_etario;
+GO
+CREATE PROCEDURE migrar_tabla_bi_rango_etario
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.BI_Rango_Etario (rango_etario)
+	VALUES 
+		('< 25'), 
+		('25 - 35'), 
+		('35 - 50'), 
+		('> 50');
+	PRINT ('Tabla "Rango etario" del BI migrada')
+END
+
+GO
+
+IF OBJECT_ID('migrar_tabla_bi_rango_horario', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_bi_rango_horario;
+GO
+CREATE PROCEDURE migrar_tabla_bi_rango_horario
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.BI_Rango_Horario (rango)
+	VALUES 
+		('00:00 - 06:00'), 
+		('06:00 - 12:00'), 
+		('12:00 - 18:00'), 
+		('18:00 - 24:00');
+	PRINT ('Tabla "Rango horario" del BI migrada')
+END
+GO
+
+
+IF OBJECT_ID('migrar_tabla_bi_tipo_pago', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_bi_tipo_pago;
+GO
+CREATE PROCEDURE migrar_tabla_bi_tipo_pago
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.BI_Tipo_Medio_Pago (tipo_medio_pago_codigo, tipo_medio_pago)
+	SELECT DISTINCT
+		p.medio_pago_codigo,
+		p.medio_pago_descripcion
+	FROM LOS_ANTI_PALA.Medio_de_pago p
+	PRINT ('Tabla "Tipo_medio_pago" del BI migrada')
+END
+GO
+
+
+IF OBJECT_ID('migrar_tabla_bi_rubro_subrubro', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_bi_rubro_subrubro;
+GO
+CREATE PROCEDURE migrar_tabla_bi_rubro_subrubro
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.BI_Rubro_Subrubro(rubro, subrubro)
+	SELECT DISTINCT 
+		r.rubro_codigo,
+		s.subrubro_codigo
+	FROM LOS_ANTI_PALA.Rubro r JOIN LOS_ANTI_PALA.Subrubro s 
+	ON r.rubro_codigo = s.rubro_codigo
+	PRINT ('Tabla "Rubro_Subrubro" del BI migrada')
+END
+GO
+
+
+IF OBJECT_ID('migrar_tabla_bi_tipo_envio', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_bi_tipo_envio;
+GO
+CREATE PROCEDURE migrar_tabla_bi_tipo_envio
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.BI_Tipo_Envio(tipo_envio_codigo, tipo_envio_descripcion)
+	SELECT DISTINCT 
+		e.tipo_envio_codigo,
+		e.tipo_envio_descripcion
+	FROM LOS_ANTI_PALA.Tipo_Envio e 
+	PRINT ('Tabla "Tipo_envio" del BI migrada')
+END
+GO
+
+IF OBJECT_ID('migrar_tabla_bi_marca', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_bi_marca;
+GO
+CREATE PROCEDURE migrar_tabla_bi_marca
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.BI_Marca(marca_codigo, marca_descripcion)
+	SELECT DISTINCT 
+		m.marca_codigo,
+		m.marca_descripcion
+	FROM LOS_ANTI_PALA.Marca m
+	PRINT ('Tabla "Marca" del BI migrada')
+END
+GO
+
+------------------------------------------------------------ FIN MIGRACION DE TABLAS ------------------------------------------------------------
+
+GO
+BEGIN TRANSACTION
+BEGIN TRY
+EXEC migrar_tabla_bi_rubro_subrubro;
+EXEC migrar_tabla_bi_marca;
+EXEC migrar_tabla_bi_rango_etario;
+EXEC migrar_tabla_bi_rango_horario;
+EXEC migrar_tabla_bi_tipo_envio;
+EXEC migrar_tabla_bi_tipo_pago;
+
+	PRINT '--- Todas las tablas del BI fueron migradas correctamente --';
+COMMIT TRANSACTION
+END TRY
+BEGIN CATCH
+ROLLBACK TRANSACTION;
+		THROW 50001, 'No se migraron correctamente las tablas del BI', 1;
+END CATCH
