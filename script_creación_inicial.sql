@@ -26,7 +26,6 @@ IF OBJECT_ID('LOS_ANTI_PALA.Detalle_de_pago', 'U') IS NOT NULL DROP TABLE LOS_AN
 IF OBJECT_ID('LOS_ANTI_PALA.Medio_de_pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Medio_de_pago;
 
 IF OBJECT_ID('LOS_ANTI_PALA.Publicacion', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Publicacion;
-IF OBJECT_ID('LOS_ANTI_PALA.Producto_por_subrubro', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Producto_por_subrubro;
 IF OBJECT_ID('LOS_ANTI_PALA.Producto', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Producto;
 IF OBJECT_ID('LOS_ANTI_PALA.Subrubro', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Subrubro;
 IF OBJECT_ID('LOS_ANTI_PALA.Rubro', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Rubro;
@@ -98,16 +97,6 @@ CREATE TABLE LOS_ANTI_PALA.Domicilio_por_usuario (
     domicilio_codigo BIGINT NOT NULL REFERENCES LOS_ANTI_PALA.Domicilio,
 )
 
-CREATE TABLE LOS_ANTI_PALA.Publicacion (
-	publicacion_codigo DECIMAL(18,0) PRIMARY KEY,
-	publicacion_descripcion NVARCHAR(50) NOT NULL,
-	publicacion_stock DECIMAL(18,0) NOT NULL,
-	publicacion_precio DECIMAL(18,2) NOT NULL DEFAULT 0,
-	publicacion_costo DECIMAL(18,2) NOT NULL DEFAULT 0,
-	producto_porcejtane_venta DECIMAL(18,2) NOT NULL DEFAULT 0,
-	publicacion_fecha DATE,
-	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Vendedor NOT NULL,
-)
 
 CREATE TABLE LOS_ANTI_PALA.Provincia (
 	provincia_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
@@ -125,6 +114,18 @@ CREATE TABLE LOS_ANTI_PALA.Almacen (
 	almacen_numero_calle DECIMAL(18,0) NOT NULL DEFAULT 0,
 	almacen_costo_dia DECIMAL (18,2),
 	localidad_codigo BIGINT REFERENCES LOS_ANTI_PALA.Localidad NOT NULL,
+)
+
+CREATE TABLE LOS_ANTI_PALA.Publicacion (
+	publicacion_codigo DECIMAL(18,0) PRIMARY KEY,
+	publicacion_descripcion NVARCHAR(50) NOT NULL,
+	publicacion_stock DECIMAL(18,0) NOT NULL,
+	publicacion_precio DECIMAL(18,2) NOT NULL DEFAULT 0,
+	publicacion_costo DECIMAL(18,2) NOT NULL DEFAULT 0,
+	producto_porcejtane_venta DECIMAL(18,2) NOT NULL DEFAULT 0,
+	publicacion_fecha DATE,
+	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Vendedor NOT NULL,
+	almacen_codigo DECIMAL (18,0) REFERENCES LOS_ANTI_PALA.Almacen NOT NULL,
 )
 
 CREATE TABLE LOS_ANTI_PALA.Marca (
@@ -478,19 +479,20 @@ AS
 BEGIN
 	INSERT INTO LOS_ANTI_PALA.Publicacion(publicacion_codigo, publicacion_descripcion,
 	publicacion_stock, publicacion_precio,publicacion_costo,producto_porcejtane_venta,
-	publicacion_fecha,usuario_codigo)
+	publicacion_fecha,almacen_codigo,usuario_codigo)
 	SELECT DISTINCT 
-		[PUBLICACION_CODIGO],
-		[PUBLICACION_DESCRIPCION],
-		[PUBLICACION_STOCK],
-		[PUBLICACION_PRECIO],
-		[PUBLICACION_COSTO],
-		[PUBLICACION_PORC_VENTA],
-		[PUBLICACION_FECHA],
-		usuario_codigo 
+		m.[PUBLICACION_CODIGO],
+		m.[PUBLICACION_DESCRIPCION],
+		m.[PUBLICACION_STOCK],
+		m.[PUBLICACION_PRECIO],
+		m.[PUBLICACION_COSTO],
+		m.[PUBLICACION_PORC_VENTA],
+		m.[PUBLICACION_FECHA],
+		m.[ALMACEN_CODIGO],
+		v.usuario_codigo 
 	FROM [GD2C2024].[gd_esquema].[Maestra] m
 		JOIN LOS_ANTI_PALA.Vendedor V 
-		ON v.vendedor_cuit =  m.VENDEDOR_CUIT AND v.vendedor_razon_social = m.VENDEDOR_RAZON_SOCIAl			 
+		ON v.vendedor_cuit =  m.VENDEDOR_CUIT AND v.vendedor_razon_social = m.VENDEDOR_RAZON_SOCIAl		
 	PRINT ('Tabla "Publicacion" migrada')
 END
 GO
@@ -900,20 +902,19 @@ EXEC migrar_tabla_pago;
 EXEC migrar_tabla_tipo_envio;
 EXEC migrar_tabla_usuario;
 EXEC migrar_tabla_vendedor;
+EXEC migrar_tabla_almacen;
 EXEC migrar_tabla_publicacion;
 EXEC migrar_tabla_cliente;
 EXEC migrar_tabla_domicilio_por_usuario;
 EXEC migrar_tabla_venta;
 EXEC migrar_tabla_detalle_venta;
 EXEC migrar_tabla_envio;
-EXEC migrar_tabla_almacen;
 EXEC migrar_tabla_factura;
 EXEC migrar_tabla_concepto_factura;
 EXEC migrar_tabla_detalle_factura;
 	PRINT '--- Todas las tablas fueron migradas correctamente --';
 COMMIT TRANSACTION
 END TRY
-
 BEGIN CATCH
 ROLLBACK TRANSACTION;
 		THROW 50001, 'No se migraron correctamente las tablas', 1;
