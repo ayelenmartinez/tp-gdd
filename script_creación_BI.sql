@@ -44,7 +44,7 @@ CREATE TABLE LOS_ANTI_PALA.BI_Tipo_Envio (
 );
 
 CREATE TABLE LOS_ANTI_PALA.BI_Rubro_Subrubro (
-	rubro_subrubro_codigo INT IDENTITY(1,1) PRIMARY KEY NOT NULL,
+	rubro_subrubro_codigo BIGINT IDENTITY(1,1) PRIMARY KEY NOT NULL,
 	rubro NVARCHAR(100),
 	subrubro NVARCHAR(100),
 );
@@ -54,5 +54,18 @@ CREATE TABLE LOS_ANTI_PALA.BI_Marca (
     marca_descripcion NVARCHAR(50),
 );
 
+---------- Hechos ----------
 
+CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Publicacion (
+	codigo_tiempo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tiempo NOT NULL,
+	rubro_subrubro_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Rubro_Subrubro NOT NULL,
+	marca_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Marca NOT NULL,
+);
+
+CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Envio (
+	tiempo_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tiempo NOT NULL,
+	ubicacion_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Ubicacion NOT NULL,
+	tipo_envio_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tipo_envio NOT NULL,
+
+)
 ------------------------------------------------------------ FIN CREACION DE TABLAS ------------------------------------------------------------
