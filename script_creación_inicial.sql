@@ -25,8 +25,8 @@ IF OBJECT_ID('LOS_ANTI_PALA.Pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Pag
 IF OBJECT_ID('LOS_ANTI_PALA.Detalle_de_pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Detalle_de_pago;
 IF OBJECT_ID('LOS_ANTI_PALA.Medio_de_pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Medio_de_pago;
 
-IF OBJECT_ID('LOS_ANTI_PALA.Publicacion', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Publicacion;
 IF OBJECT_ID('LOS_ANTI_PALA.Producto', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Producto;
+IF OBJECT_ID('LOS_ANTI_PALA.Publicacion', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Publicacion;
 IF OBJECT_ID('LOS_ANTI_PALA.Subrubro', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Subrubro;
 IF OBJECT_ID('LOS_ANTI_PALA.Rubro', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Rubro;
 
@@ -59,6 +59,7 @@ CREATE TABLE LOS_ANTI_PALA.Usuario (
 	usuario_mail NVARCHAR(50),
 )
 
+
 CREATE TABLE LOS_ANTI_PALA.Cliente (
 	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Usuario PRIMARY KEY,
 	cliente_nombre NVARCHAR(50) NOT NULL,
@@ -66,6 +67,7 @@ CREATE TABLE LOS_ANTI_PALA.Cliente (
 	cliente_dni DECIMAL(18,0) CONSTRAINT unique_cliente_dni NOT NULL,
 	cliente_fecha_nac DATE NOT NULL
 )
+
 
 CREATE TABLE LOS_ANTI_PALA.Vendedor (
 	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Usuario PRIMARY KEY,
@@ -91,6 +93,7 @@ CREATE TABLE LOS_ANTI_PALA.Domicilio (
 	domicilio_depto NVARCHAR(50),
 )
 
+
 CREATE TABLE LOS_ANTI_PALA.Domicilio_por_usuario (
 	PRIMARY KEY (usuario_codigo, domicilio_codigo),
     usuario_codigo BIGINT NOT NULL REFERENCES LOS_ANTI_PALA.Usuario,
@@ -102,6 +105,7 @@ CREATE TABLE LOS_ANTI_PALA.Provincia (
 	provincia_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	provincia_nombre NVARCHAR(50) NOT NULL,
 )
+
 
 CREATE TABLE LOS_ANTI_PALA.Localidad (
 	localidad_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
@@ -116,39 +120,45 @@ CREATE TABLE LOS_ANTI_PALA.Almacen (
 	localidad_codigo BIGINT REFERENCES LOS_ANTI_PALA.Localidad NOT NULL,
 )
 
-CREATE TABLE LOS_ANTI_PALA.Publicacion (
-	publicacion_codigo DECIMAL(18,0) PRIMARY KEY,
-	publicacion_descripcion NVARCHAR(50) NOT NULL,
-	publicacion_stock DECIMAL(18,0) NOT NULL,
-	publicacion_precio DECIMAL(18,2) NOT NULL DEFAULT 0,
-	publicacion_costo DECIMAL(18,2) NOT NULL DEFAULT 0,
-	producto_porcejtane_venta DECIMAL(18,2) NOT NULL DEFAULT 0,
-	publicacion_fecha_inicial DATE,
-	publicacion_fecha_final DATE,
-	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Vendedor NOT NULL,
-	almacen_codigo DECIMAL (18,0) REFERENCES LOS_ANTI_PALA.Almacen NOT NULL,
-)
 
 CREATE TABLE LOS_ANTI_PALA.Marca (
 	marca_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	marca_descripcion NVARCHAR(50) NOT NULL,
 )
 
+
 CREATE TABLE LOS_ANTI_PALA.Modelo (
 	modelo_codigo DECIMAL(18,0) PRIMARY KEY,
 	modelo_descripcion NVARCHAR(50) NOT NULL,
 )
+
 
 CREATE TABLE LOS_ANTI_PALA.Rubro (
 	rubro_codigo DECIMAL(18,0) IDENTITY(1,1) PRIMARY KEY,
 	rubro_descripcion NVARCHAR(50) NOT NULL,
 )
 
+
 CREATE TABLE LOS_ANTI_PALA.Subrubro (
 	subrubro_codigo DECIMAL(18,0) IDENTITY(1,1) PRIMARY KEY,
 	subrubro_descripcion NVARCHAR(50) NOT NULL,
 	rubro_codigo DECIMAL(18,0) REFERENCES LOS_ANTI_PALA.Rubro,
 )
+
+
+CREATE TABLE LOS_ANTI_PALA.Publicacion (
+	publicacion_codigo DECIMAL(18,0) PRIMARY KEY,
+	publicacion_descripcion NVARCHAR(50) NOT NULL,
+	publicacion_stock DECIMAL(18,0) NOT NULL,
+	publicacion_precio DECIMAL(18,2) NOT NULL DEFAULT 0,
+	publicacion_costo DECIMAL(18,2) NOT NULL DEFAULT 0,
+	publicacion_porcentaje_venta DECIMAL(18,2) NOT NULL DEFAULT 0,
+	publicacion_fecha_inicial DATE,
+	publicacion_fecha_final DATE,
+	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Vendedor NOT NULL,
+	almacen_codigo DECIMAL (18,0) REFERENCES LOS_ANTI_PALA.Almacen NOT NULL,
+)
+
 
 CREATE TABLE LOS_ANTI_PALA.Producto (
 	producto_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
@@ -158,6 +168,7 @@ CREATE TABLE LOS_ANTI_PALA.Producto (
 	marca_codigo BIGINT REFERENCES LOS_ANTI_PALA.Marca NOT NULL,
 	modelo_codigo DECIMAL(18,0) REFERENCES LOS_ANTI_PALA.Modelo NOT NULL,
 	subrubro_codigo DECIMAL (18,0) REFERENCES LOS_ANTI_PALA.Subrubro NOT NULL,
+	publicacion_codigo DECIMAL(18,0) NOT NULL,
 )
 
 
@@ -174,6 +185,7 @@ CREATE TABLE LOS_ANTI_PALA.Detalle_de_pago (
 	detalle_pago_venc_tarjeta DATE NOT NULL,
 	detalle_pago_cuotas DECIMAL(18,0) NOT NULL DEFAULT 0,
 )
+
 
 CREATE TABLE LOS_ANTI_PALA.Pago (
 	pago_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
@@ -479,7 +491,7 @@ CREATE PROCEDURE migrar_tabla_publicacion
 AS
 BEGIN
 	INSERT INTO LOS_ANTI_PALA.Publicacion(publicacion_codigo, publicacion_descripcion,
-	publicacion_stock, publicacion_precio,publicacion_costo,producto_porcejtane_venta,
+	publicacion_stock, publicacion_precio,publicacion_costo,publicacion_porcentaje_venta,
 	publicacion_fecha_inicial, publicacion_fecha_final,almacen_codigo,usuario_codigo)
 	SELECT DISTINCT 
 		m.[PUBLICACION_CODIGO],
@@ -491,10 +503,10 @@ BEGIN
 		m.[PUBLICACION_FECHA],
 		m.[PUBLICACION_FECHA_V],
 		m.[ALMACEN_CODIGO],
-		v.usuario_codigo 
+		v.usuario_codigo
 	FROM [GD2C2024].[gd_esquema].[Maestra] m
 		JOIN LOS_ANTI_PALA.Vendedor V 
-		ON v.vendedor_cuit =  m.VENDEDOR_CUIT AND v.vendedor_razon_social = m.VENDEDOR_RAZON_SOCIAl		
+		ON v.vendedor_cuit =  m.VENDEDOR_CUIT AND v.vendedor_razon_social = m.VENDEDOR_RAZON_SOCIAl	
 	PRINT ('Tabla "Publicacion" migrada')
 END
 GO
@@ -797,7 +809,8 @@ BEGIN
         producto_precio,
         marca_codigo,
         modelo_codigo,
-		subrubro_codigo
+		subrubro_codigo,
+		publicacion_codigo
     )
     SELECT DISTINCT
         m.PRODUCTO_CODIGO,
@@ -805,7 +818,8 @@ BEGIN
         m.PRODUCTO_PRECIO,
         ma.marca_codigo,
         mo.modelo_codigo,
-		s.subrubro_codigo
+		s.subrubro_codigo,
+		m.publicacion_codigo
     FROM [GD2C2024].[gd_esquema].[Maestra] m
      JOIN LOS_ANTI_PALA.Marca MA 
 		ON ma.marca_descripcion = m.PRODUCTO_MARCA
@@ -898,7 +912,7 @@ EXEC migrar_tabla_provincia;
 EXEC migrar_tabla_rubro;
 EXEC migrar_tabla_subrubro;
 EXEC migrar_tabla_producto;
-EXEC migrar_tabla_medio_de_pago
+EXEC migrar_tabla_medio_de_pago;
 EXEC migrar_tabla_detalle_de_pago;
 EXEC migrar_tabla_pago;
 EXEC migrar_tabla_tipo_envio;
