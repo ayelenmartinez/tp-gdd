@@ -123,7 +123,8 @@ CREATE TABLE LOS_ANTI_PALA.Publicacion (
 	publicacion_precio DECIMAL(18,2) NOT NULL DEFAULT 0,
 	publicacion_costo DECIMAL(18,2) NOT NULL DEFAULT 0,
 	producto_porcejtane_venta DECIMAL(18,2) NOT NULL DEFAULT 0,
-	publicacion_fecha DATE,
+	publicacion_fecha_inicial DATE,
+	publicacion_fecha_final DATE,
 	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Vendedor NOT NULL,
 	almacen_codigo DECIMAL (18,0) REFERENCES LOS_ANTI_PALA.Almacen NOT NULL,
 )
@@ -479,7 +480,7 @@ AS
 BEGIN
 	INSERT INTO LOS_ANTI_PALA.Publicacion(publicacion_codigo, publicacion_descripcion,
 	publicacion_stock, publicacion_precio,publicacion_costo,producto_porcejtane_venta,
-	publicacion_fecha,almacen_codigo,usuario_codigo)
+	publicacion_fecha_inicial, publicacion_fecha_final,almacen_codigo,usuario_codigo)
 	SELECT DISTINCT 
 		m.[PUBLICACION_CODIGO],
 		m.[PUBLICACION_DESCRIPCION],
@@ -488,6 +489,7 @@ BEGIN
 		m.[PUBLICACION_COSTO],
 		m.[PUBLICACION_PORC_VENTA],
 		m.[PUBLICACION_FECHA],
+		m.[PUBLICACION_FECHA_V],
 		m.[ALMACEN_CODIGO],
 		v.usuario_codigo 
 	FROM [GD2C2024].[gd_esquema].[Maestra] m
