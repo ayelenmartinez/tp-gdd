@@ -86,6 +86,8 @@ CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Publicacion (
 	codigo_tiempo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tiempo NOT NULL,
 	rubro_subrubro_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Rubro_Subrubro NOT NULL,
 	marca_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Marca NOT NULL,
+	publicacion_vigencia DECIMAL(18,0) NOT NULL DEFAULT 0,
+	publicacion_stock_inicial_promedio DECIMAL(18,0) NOT NULL DEFAULT 0,
 );
 
 CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Envio (
@@ -103,10 +105,38 @@ CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Facturacion (
 
 ------------------------------------------------------------ FIN CREACION DE TABLAS ------------------------------------------------------------
 
+---------- Funciones auxiliares ----------
 
+IF OBJECT_ID('LOS_ANTI_PALA.obtenerCuatrimestre', 'FN') IS NOT NULL
+BEGIN
+    DROP FUNCTION LOS_ANTI_PALA.obtenerCuatrimestre;
+END
+
+GO
+
+
+CREATE FUNCTION LOS_ANTI_PALA.obtenerCuatrimestre (@fecha DATE)
+RETURNS SMALLINT
+AS BEGIN
+DECLARE @nro_cuatrimestre SMALLINT
+SET @nro_cuatrimestre =
+	CASE
+		WHEN MONTH(@fecha) BETWEEN 1 AND 4 THEN 1
+		WHEN MONTH(@fecha) BETWEEN 5 AND 8 THEN 2
+		WHEN MONTH(@fecha) BETWEEN 9 AND 12 THEN 3
+	END
+
+RETURN @nro_cuatrimestre
+
+END
+GO
+
+---------- Fin funciones auxiliares ----------
 
 ------------------------------------------------------------ MIGRACION DE TABLAS ------------------------------------------------------------
 
+
+---------- Migracion dimensiones ----------
 
 IF OBJECT_ID('migrar_tabla_bi_rango_etario', 'P') IS NOT NULL
     DROP PROCEDURE migrar_tabla_bi_rango_etario;
@@ -215,11 +245,12 @@ BEGIN
 	SELECT DISTINCT 
 		d.domicilio_provincia,
 		d.domicilio_localidad
-		FROM LOS_ANTI_PALA.Domicilio d
+		FROM LOS_ANTI_PALA.Domicilio d 
 
 	PRINT ('Tabla "Ubicacion" del BI migrada')
 END
 GO
+
 
 IF OBJECT_ID ('migrar_tabla_bi_tiempo', 'P') IS NOT NULL
 	DROP PROCEDURE migrar_tabla_bi_tiempo;
@@ -229,21 +260,25 @@ AS
 BEGIN
 	INSERT INTO LOS_ANTI_PALA.BI_Tiempo(tiempo_anio,tiempo_cuatrimestre,tiempo_mes)
 	SELECT DISTINCT
-	YEAR(v.venta_fecha), AS ANIO
-	LOS_ANTI_PALA.getCuatrimestre(v.venta_fecha), AS CUATRIMESTRE
-	MONTH(v.venta_fecha) AS MES
+		YEAR(v.venta_fecha), 
+		LOS_ANTI_PALA.obtenerCuatrimestre(v.venta_fecha), 
+		MONTH(v.venta_fecha)
 	FROM LOS_ANTI_PALA.Venta v
+
 	UNION 
+
 	SELECT DISTINCT 
-	YEAR(f.factura_fecha), AS ANIO
-	LOS_ANTI_PALA.getCuatrimestre(f.factura_fecha), AS CUATRIMESTRE
-	MONTH(f.factura_fecha) AS MES
+		YEAR(f.factura_fecha),
+		LOS_ANTI_PALA.obtenerCuatrimestre(f.factura_fecha), 
+		MONTH(f.factura_fecha) 
 	FROM LOS_ANTI_PALA.Factura f
+
 	UNION
+
 	SELECT DISTINCT
-	YEAR(p.pago_fecha),AS ANIO
-	LOS_ANTI_PALA.getCuatrimestre(p.pago_fecha), AS CUATRIMESTRE
-	MONTH(p.pago_fecha) AS MES
+		YEAR(p.pago_fecha),
+		LOS_ANTI_PALA.obtenerCuatrimestre(p.pago_fecha), 
+		MONTH(p.pago_fecha) AS MES
 	FROM LOS_ANTI_PALA.Pago P
 
 	--FALTA TERMINAR
@@ -252,7 +287,42 @@ BEGIN
 PRINT ('Tabla "Tiempo" del BI migrada')
 END
 GO
+---------- Fin migracion dimensiones ----------
 
+
+---------- Migracion Hechos ----------
+
+IF OBJECT_ID('migrar_tabla_bi_hecho_publicacion', 'P') IS NOT NULL
+	DROP PROCEDURE migrar_tabla_bi_hecho_publicacion;
+GO
+CREATE PROCEDURE migrar_tabla_bi_hecho_publicacion
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.BI_Hecho_Publicacion
+				(publicacion_vigencia, publicacion_stock_inicial_promedio, codigo_tiempo, 
+				marca_codigo, rubro_subrubro_codigo)
+	SELECT
+		AVG(DATEDIFF(DAY, p.publicacion_fecha_inicial, p.publicacion_fecha_final)),
+		AVG(p.publicacion_stock),
+		t.tiempo_codigo,
+		m.marca_codigo,
+		r.rubro_subrubro_codigo
+	FROM LOS_ANTI_PALA.Publicacion p 
+	JOIN LOS_ANTI_PALA.BI_Tiempo t
+		ON YEAR(p.publicacion_fecha_inicial) = t.tiempo_anio AND MONTH(p.publicacion_fecha_final) = t.tiempo_mes
+	JOIN LOS_ANTI_PALA.Producto prod 
+		ON p.publicacion_codigo = prod.publicacion_codigo
+	JOIN LOS_ANTI_PALA.BI_Rubro_Subrubro r
+		ON prod.subrubro_codigo = r.subrubro
+	JOIN LOS_ANTI_PALA.Marca m
+		ON prod.marca_codigo = m.marca_codigo
+	GROUP BY t.tiempo_codigo, m.marca_codigo, r.rubro_subrubro_codigo
+	PRINT ('Tabla "Hecho Publicacion" del BI migrada')
+END
+GO
+
+
+---------- Fin migracion Hechos ----------
 
 
 ------------------------------------------------------------ FIN MIGRACION DE TABLAS ------------------------------------------------------------
@@ -268,6 +338,7 @@ EXEC migrar_tabla_bi_tipo_envio;
 EXEC migrar_tabla_bi_ubicacion;
 EXEC migrar_tabla_bi_tipo_pago;
 EXEC migrar_tabla_bi_tiempo;
+EXEC migrar_tabla_bi_hecho_publicacion;
 
 	PRINT '--- Todas las tablas del BI fueron migradas correctamente --';
 COMMIT TRANSACTION
@@ -278,29 +349,39 @@ ROLLBACK TRANSACTION;
 END CATCH
 
 
+------------------------------------------------------------ VISTAS ------------------------------------------------------------
+GO
 
----- funciones auxiliares----
+-- 1) Promedio de tiempo de publicaciones.
 
-IF OBJECT_ID('[EXEL_ENTES].getCuatrimestre', 'FN') IS NOT NULL
-BEGIN
-    DROP FUNCTION [EXEL_ENTES].getCuatrimestre;
-END
+CREATE VIEW LOS_ANTI_PALA.BI_promedio_tiempo_publicaciones AS
+SELECT
+    t.tiempo_anio AS anio,
+    t.tiempo_cuatrimestre AS cuatrimestre,
+    r.subrubro,
+    p.publicacion_vigencia
+
+FROM LOS_ANTI_PALA.BI_Hecho_Publicacion p
+	 JOIN LOS_ANTI_PALA.BI_Tiempo t 
+		ON p.codigo_tiempo = t.tiempo_codigo
+	 JOIN LOS_ANTI_PALA.BI_Rubro_Subrubro r 
+		ON p.rubro_subrubro_codigo = r.rubro_subrubro_codigo
+GROUP BY 
+    t.tiempo_anio,
+    t.tiempo_cuatrimestre,
+    r.subrubro,
+	p.publicacion_vigencia
 
 GO
 
+-- 2) Promedio de Stock Inicial.
 
-alter FUNCTION LOS_ANTI_PALA.getCuatrimestre (@fecha DATE)
-RETURNS SMALLINT
-AS BEGIN
-DECLARE @nro_cuatrimestre SMALLINT
-SET @nro_cuatrimestre =
-	CASE
-		WHEN MONTH(@fecha) BETWEEN 1 AND 4 THEN 1
-		WHEN MONTH(@fecha) BETWEEN 5 AND 8 THEN 2
-		WHEN MONTH(@fecha) BETWEEN 9 AND 12 THEN 3
-	END
-
-RETURN @nro_cuatrimestre
-
-END
-GO
+CREATE VIEW LOS_ANTI_PALA.promedio_stock_inicial AS
+SELECT
+	p.publicacion_stock_inicial_promedio,
+	p.marca_codigo,
+	t.tiempo_anio
+	
+FROM LOS_ANTI_PALA.BI_Hecho_Publicacion p 
+JOIN LOS_ANTI_PALA.BI_Tiempo t ON p.codigo_tiempo = t.tiempo_codigo
+GROUP BY p.publicacion_stock_inicial_promedio, p.marca_codigo, t.tiempo_anio
