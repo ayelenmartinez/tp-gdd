@@ -94,7 +94,6 @@ CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Envio (
 	tiempo_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tiempo NOT NULL,
 	ubicacion_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Ubicacion NOT NULL,
 	tipo_envio_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tipo_envio NOT NULL,
-
 );
 
 CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Facturacion (
@@ -281,7 +280,22 @@ BEGIN
 		MONTH(p.pago_fecha) AS MES
 	FROM LOS_ANTI_PALA.Pago P
 
-	--FALTA TERMINAR
+	UNION 
+
+	SELECT DISTINCT 
+		YEAR(u.usuario_fecha_creacion),
+		LOS_ANTI_PALA.obtenerCuatrimestre(u.usuario_fecha_creacion),
+		MONTH(u.usuario_fecha_creacion)
+	FROM LOS_ANTI_PALA.Usuario u
+
+	UNION
+
+	SELECT DISTINCT
+		YEAR(c.cliente_fecha_nac),
+		LOS_ANTI_PALA.obtenerCuatrimestre(c.cliente_fecha_nac),
+		MONTH(c.cliente_fecha_nac)
+	FROM LOS_ANTI_PALA.Cliente c
+	
 
 
 PRINT ('Tabla "Tiempo" del BI migrada')
@@ -322,6 +336,34 @@ END
 GO
 
 
+IF OBJECT_ID('migrar_tabla_bi_hecho_envio', 'P') IS NOT NULL
+	DROP PROCEDURE migrar_tabla_bi_hecho_envio;
+GO
+CREATE PROCEDURE migrar_tabla_bi_hecho_envio
+AS
+BEGIN
+	INSERT INTO LOS_ANTI_PALA.BI_Hecho_Envio(tiempo_codigo,	ubicacion_codigo,tipo_envio_codigo)
+
+	SELECT DISTINCT
+	t.tiempo_codigo,
+	u.ubicacion_codigo,
+	e.tipo_envio_codigo
+	
+	FROM LOS_ANTI_PALA.Envio env
+	JOIN LOS_ANTI_PALA.BI_Tiempo t 
+		ON YEAR(env.envio_fecha_entrega) = t.tiempo_anio AND MONTH(env.envio_fecha_entrega) = t.tiempo_mes 
+	JOIN LOS_ANTI_PALA.Tipo_Envio te 
+		ON env.envio_tipo_envio = te.tipo_envio_codigo 
+	JOIN LOS_ANTI_PALA.BI_Tipo_Envio e 
+		ON e.tipo_envio_codigo = te.tipo_envio_codigo
+	JOIN LOS_ANTI_PALA.Domicilio d ON d.domicilio_codigo = env.domicilio_codigo
+	JOIN LOS_ANTI_PALA.BI_Ubicacion u
+		ON u.ubicacion_provincia = d.domicilio_provincia AND u.ubicacion_localidad = d.domicilio_localidad
+
+	PRINT ('Tabla "Hecho Publicacion" del BI migrada')
+END
+GO
+
 ---------- Fin migracion Hechos ----------
 
 
@@ -339,6 +381,7 @@ EXEC migrar_tabla_bi_ubicacion;
 EXEC migrar_tabla_bi_tipo_pago;
 EXEC migrar_tabla_bi_tiempo;
 EXEC migrar_tabla_bi_hecho_publicacion;
+EXEC migrar_tabla_bi_hecho_envio;
 
 	PRINT '--- Todas las tablas del BI fueron migradas correctamente --';
 COMMIT TRANSACTION
@@ -356,10 +399,10 @@ GO
 
 CREATE VIEW LOS_ANTI_PALA.BI_promedio_tiempo_publicaciones AS
 SELECT
-    t.tiempo_anio AS anio,
+    t.tiempo_anio AS anio, 
     t.tiempo_cuatrimestre AS cuatrimestre,
     r.subrubro,
-    p.publicacion_vigencia
+    p.publicacion_vigencia AS 'Promedio de tiempo de publicaciones'
 
 FROM LOS_ANTI_PALA.BI_Hecho_Publicacion p
 	 JOIN LOS_ANTI_PALA.BI_Tiempo t 
@@ -379,9 +422,12 @@ GO
 CREATE VIEW LOS_ANTI_PALA.promedio_stock_inicial AS
 SELECT
 	p.publicacion_stock_inicial_promedio,
-	p.marca_codigo,
+	m.marca_descripcion,
 	t.tiempo_anio
 	
 FROM LOS_ANTI_PALA.BI_Hecho_Publicacion p 
 JOIN LOS_ANTI_PALA.BI_Tiempo t ON p.codigo_tiempo = t.tiempo_codigo
-GROUP BY p.publicacion_stock_inicial_promedio, p.marca_codigo, t.tiempo_anio
+JOIN LOS_ANTI_PALA.BI_Marca m ON p.marca_codigo = m.marca_codigo
+GROUP BY p.publicacion_stock_inicial_promedio, m.marca_descripcion, t.tiempo_anio
+
+-- 3)

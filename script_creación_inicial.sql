@@ -25,8 +25,8 @@ IF OBJECT_ID('LOS_ANTI_PALA.Pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Pag
 IF OBJECT_ID('LOS_ANTI_PALA.Detalle_de_pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Detalle_de_pago;
 IF OBJECT_ID('LOS_ANTI_PALA.Medio_de_pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Medio_de_pago;
 
-IF OBJECT_ID('LOS_ANTI_PALA.Producto', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Producto;
 IF OBJECT_ID('LOS_ANTI_PALA.Publicacion', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Publicacion;
+IF OBJECT_ID('LOS_ANTI_PALA.Producto', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Producto;
 IF OBJECT_ID('LOS_ANTI_PALA.Subrubro', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Subrubro;
 IF OBJECT_ID('LOS_ANTI_PALA.Rubro', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Rubro;
 
@@ -222,7 +222,8 @@ CREATE TABLE LOS_ANTI_PALA.Envio (
 	envio_hora_inicio DECIMAL(18,0) NOT NULL DEFAULT 0,
 	envio_hora_fin DECIMAL(18,0) NOT NULL DEFAULT 0,
 	envio_tipo_envio BIGINT NOT NULL REFERENCES LOS_ANTI_PALA.tipo_envio,
-	venta_codigo DECIMAL(18,0) REFERENCES LOS_ANTI_PALA.Venta
+	venta_codigo DECIMAL(18,0) REFERENCES LOS_ANTI_PALA.Venta,
+	domicilio_codigo BIGINT NOT NULL REFERENCES LOS_ANTI_PALA.domicilio
 )
 
 CREATE TABLE LOS_ANTI_PALA.Concepto_factura (
@@ -633,7 +634,7 @@ AS
 	BEGIN
 		INSERT INTO LOS_ANTI_PALA.Envio(
 			envio_fecha_programada,envio_fecha_entrega,envio_costo,envio_hora_inicio,
-			envio_hora_fin, envio_tipo_envio, venta_codigo)
+			envio_hora_fin, envio_tipo_envio, venta_codigo, domicilio_codigo)
 		SELECT 
 			[ENVIO_FECHA_PROGAMADA],
 			[ENVIO_FECHA_ENTREGA],
@@ -641,11 +642,15 @@ AS
 			[ENVIO_HORA_INICIO],
 			[ENVIO_HORA_FIN_INICIO],
 			tipo_envio_codigo,
-			v.venta_codigo
-			FROM [GD2C2024].[gd_esquema].[Maestra] 
+			v.venta_codigo,
+			d.domicilio_codigo
+			FROM [GD2C2024].[gd_esquema].[Maestra] m
 				JOIN LOS_ANTI_PALA.Tipo_Envio
-				ON LOS_ANTI_PALA.Tipo_Envio.tipo_envio_descripcion =  [GD2C2024].[gd_esquema].[Maestra].[ENVIO_TIPO]
-				JOIN LOS_ANTI_PALA.Venta v ON v.venta_codigo = [GD2C2024].[gd_esquema].[Maestra].[VENTA_CODIGO]
+				ON LOS_ANTI_PALA.Tipo_Envio.tipo_envio_descripcion =  m.ENVIO_TIPO
+				JOIN LOS_ANTI_PALA.Venta v ON v.venta_codigo = m.VENTA_CODIGO
+				JOIN LOS_ANTI_PALA.Domicilio d ON d.domicilio_calle = m.CLI_USUARIO_DOMICILIO_CALLE AND d.domicilio_nro_calle = m.CLI_USUARIO_DOMICILIO_NRO_CALLE AND
+				d.domicilio_depto = m.CLI_USUARIO_DOMICILIO_DEPTO AND d.domicilio_piso = m.CLI_USUARIO_DOMICILIO_PISO AND d.domicilio_localidad = m.CLI_USUARIO_DOMICILIO_LOCALIDAD
+				AND d.domicilio_provincia = m.CLI_USUARIO_DOMICILIO_PROVINCIA AND d.domicilio_codigo_postal = m.CLI_USUARIO_DOMICILIO_CP
 			PRINT('Tabla "Envio" migrada')
 	END
 GO
