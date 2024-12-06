@@ -94,14 +94,16 @@ CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Envio (
 	tiempo_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tiempo NOT NULL,
 	ubicacion_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Ubicacion NOT NULL,
 	tipo_envio_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tipo_envio NOT NULL,
+	envio_cumplido BIT NOT NULL,
+	envio_costo DECIMAL (18,2)
 );
 
 CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Facturacion (
     tiempo_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tiempo NOT NULL,
-    ubicacion_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Ubicacion NOT NULL,
-    
+	ubicacion_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Ubicacion NOT NULL,
+    facturacion_concepto NVARCHAR(50),
+	factura_total DECIMAL(18,2)
 );
-
 ------------------------------------------------------------ FIN CREACION DE TABLAS ------------------------------------------------------------
 
 ---------- Funciones auxiliares ----------
@@ -342,13 +344,18 @@ GO
 CREATE PROCEDURE migrar_tabla_bi_hecho_envio
 AS
 BEGIN
-	INSERT INTO LOS_ANTI_PALA.BI_Hecho_Envio(tiempo_codigo,	ubicacion_codigo,tipo_envio_codigo)
+	INSERT INTO LOS_ANTI_PALA.BI_Hecho_Envio(tiempo_codigo,	ubicacion_codigo,tipo_envio_codigo, envio_cumplido,envio_costo)
 
 	SELECT DISTINCT
 	t.tiempo_codigo,
 	u.ubicacion_codigo,
-	e.tipo_envio_codigo
-	
+	e.tipo_envio_codigo,
+	CASE 
+		WHEN DATEDIFF(d,env.envio_fecha_entrega,env.envio_fecha_programada) >= 0 THEN 1
+		ELSE 0
+	END,
+	env.envio_costo
+
 	FROM LOS_ANTI_PALA.Envio env
 	JOIN LOS_ANTI_PALA.BI_Tiempo t 
 		ON YEAR(env.envio_fecha_entrega) = t.tiempo_anio AND MONTH(env.envio_fecha_entrega) = t.tiempo_mes 
@@ -360,9 +367,57 @@ BEGIN
 	JOIN LOS_ANTI_PALA.BI_Ubicacion u
 		ON u.ubicacion_provincia = d.domicilio_provincia AND u.ubicacion_localidad = d.domicilio_localidad
 
-	PRINT ('Tabla "Hecho Publicacion" del BI migrada')
+	PRINT ('Tabla "Hecho Envio" del BI migrada')
 END
 GO
+
+IF OBJECT_ID('migrar_tabla_bi_hecho_facturacion', 'P') IS NOT NULL  --Esta bien creada la migracion BI, pero falta corregir migracion factura
+    DROP PROCEDURE migrar_tabla_bi_hecho_facturacion;
+GO
+
+CREATE PROCEDURE migrar_tabla_bi_hecho_facturacion
+AS
+BEGIN
+
+    INSERT INTO LOS_ANTI_PALA.BI_Hecho_Facturacion (
+        tiempo_codigo,
+        ubicacion_codigo,
+        facturacion_concepto,
+        factura_total
+    )
+    SELECT 
+        t.tiempo_codigo,
+        u.ubicacion_codigo,
+        cf.concepto_factura_tipo,
+        f.factura_total
+    FROM 
+        LOS_ANTI_PALA.Factura f
+    JOIN 
+        LOS_ANTI_PALA.BI_Tiempo t
+    ON t.tiempo_anio = YEAR(f.factura_fecha)
+    AND t.tiempo_mes = MONTH(f.factura_fecha)
+    JOIN LOS_ANTI_PALA.Usuario us
+	ON us.usuario_codigo = f.usuario_codigo
+	JOIN LOS_ANTI_PALA.Domicilio_por_usuario du
+	ON du.usuario_codigo = us.usuario_codigo
+	JOIN LOS_ANTI_PALA.Domicilio d 
+	ON d.domicilio_codigo = du.domicilio_codigo
+	JOIN 
+        LOS_ANTI_PALA.BI_Ubicacion u
+	ON u.ubicacion_provincia = d.domicilio_provincia AND u.ubicacion_localidad = d.domicilio_localidad 
+	JOIN LOS_ANTI_PALA.Detalle_factura df
+	ON df.factura_numero = f.factura_numero 
+	JOIN LOS_ANTI_PALA.Concepto_factura cf
+	ON cf.concepto_factura_codigo = df.concepto_factura_codigo
+	
+
+
+    PRINT ('Tabla "BI_Hecho_Facturacion" migrada correctamente');
+    
+END;
+GO
+
+
 
 ---------- Fin migracion Hechos ----------
 
@@ -382,6 +437,7 @@ EXEC migrar_tabla_bi_tipo_pago;
 EXEC migrar_tabla_bi_tiempo;
 EXEC migrar_tabla_bi_hecho_publicacion;
 EXEC migrar_tabla_bi_hecho_envio;
+EXEC migrar_tabla_bi_hecho_facturacion;
 
 	PRINT '--- Todas las tablas del BI fueron migradas correctamente --';
 COMMIT TRANSACTION
@@ -429,5 +485,60 @@ FROM LOS_ANTI_PALA.BI_Hecho_Publicacion p
 JOIN LOS_ANTI_PALA.BI_Tiempo t ON p.codigo_tiempo = t.tiempo_codigo
 JOIN LOS_ANTI_PALA.BI_Marca m ON p.marca_codigo = m.marca_codigo
 GROUP BY p.publicacion_stock_inicial_promedio, m.marca_descripcion, t.tiempo_anio
+GO
 
--- 3)
+-- 7) Porcentaje de cumplimiento de envíos en tiempos programados
+
+CREATE VIEW LOS_ANTI_PALA.porcentaje_cumplimiento_envios AS
+SELECT
+	t.tiempo_anio AS anio,
+	t.tiempo_mes AS mes,
+	u.ubicacion_provincia AS provincia,
+	 
+	 COUNT(CASE WHEN e.envio_cumplido = 1 THEN 1 END) * 100.0 / COUNT(*) AS porcentaje_cumplimiento
+
+	
+FROM LOS_ANTI_PALA.BI_Hecho_Envio e 
+JOIN LOS_ANTI_PALA.BI_Tiempo t ON e.tiempo_codigo = t.tiempo_codigo
+JOIN LOS_ANTI_PALA.BI_Ubicacion u ON e.ubicacion_codigo = u.ubicacion_codigo
+GROUP BY
+	t.tiempo_anio,
+	t.tiempo_mes,
+	u.ubicacion_provincia
+GO
+
+-- 8) Localidades que pagan mayor costo de envío.Las 5 localidades (tomando la localidad del cliente) con mayor costo de envío.
+CREATE VIEW LOS_ANTI_PALA.localidad_paga_mayor_costo_envio AS
+SELECT TOP 5 
+	u.ubicacion_localidad AS Localidad,
+	e.envio_costo AS Costo_envio
+	
+	FROM LOS_ANTI_PALA.BI_Hecho_Envio e
+	JOIN LOS_ANTI_PALA.BI_Ubicacion u 
+	ON u.ubicacion_codigo = e.ubicacion_codigo
+
+	ORDER BY e.envio_costo desc
+
+GO
+
+
+
+
+/*
+select*from LOS_ANTI_PALA.Factura f
+    JOIN LOS_ANTI_PALA.Cliente us
+	ON us.usuario_codigo = f.usuario_codigo
+	JOIN LOS_ANTI_PALA.Domicilio_por_usuario du
+	ON du.usuario_codigo = us.usuario_codigo
+	JOIN LOS_ANTI_PALA.Domicilio d 
+	ON d.domicilio_codigo = du.domicilio_codigo
+	JOIN LOS_ANTI_PALA.Detalle_factura df
+	ON df.factura_numero = f.factura_numero 
+	JOIN LOS_ANTI_PALA.Concepto_factura cf
+	ON cf.concepto_factura_codigo = df.concepto_factura_codigo
+
+select*from LOS_ANTI_PALA.Domicilio_por_usuario
+select*from LOS_ANTI_PALA.Usuario u
+	JOIN LOS_ANTI_PALA.Domicilio_por_usuario du
+	ON du.usuario_codigo = u.usuario_codigo
+	*/

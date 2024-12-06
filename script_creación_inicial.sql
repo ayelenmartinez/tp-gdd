@@ -838,6 +838,7 @@ GO
 -------- Fin migracion Producto ----------
 
 ---------- Migracion Factura ----------
+/*
 IF OBJECT_ID('migrar_tabla_factura', 'P') IS NOT NULL
     DROP PROCEDURE migrar_tabla_factura;
 GO
@@ -849,9 +850,9 @@ AS
 			m.FACTURA_NUMERO,
 			m.FACTURA_FECHA,
 			m.FACTURA_TOTAL,
-			p.usuario_codigo
-		FROM [GD2C2024].[gd_esquema].[Maestra] m JOIN LOS_ANTI_PALA.Publicacion p 
-			ON m.PUBLICACION_CODIGO = p.publicacion_codigo
+			c.usuario_codigo
+		FROM [GD2C2024].[gd_esquema].[Maestra] m JOIN LOS_ANTI_PALA.Cliente c
+			ON m.
 		WHERE m.FACTURA_NUMERO IS NOT NULL
         PRINT('Tabla "Factura" migrada')
     END
@@ -875,7 +876,7 @@ AS
     END
 GO
 -------- Fin migracion Concepto Factura ----------
-
+*/
 
 ---------- Migracion Detalle Factura ----------
 IF OBJECT_ID('migrar_tabla_detalle_factura', 'P') IS NOT NULL
