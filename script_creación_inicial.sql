@@ -117,6 +117,7 @@ CREATE TABLE LOS_ANTI_PALA.Provincia (
 CREATE TABLE LOS_ANTI_PALA.Localidad (
 	localidad_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	localidad_nombre NVARCHAR(50) NOT NULL,
+	provincia_codigo BIGINT REFERENCES LOS_ANTI_PALA.Provincia NOT NULL,
 )
 
 CREATE TABLE LOS_ANTI_PALA.Almacen (
@@ -422,12 +423,12 @@ GO
 CREATE PROCEDURE migrar_tabla_localidad
 AS
 BEGIN
-	INSERT INTO LOS_ANTI_PALA.Localidad(localidad_nombre)
-	SELECT 
-		ALMACEN_Localidad
-	FROM [GD2C2024].[gd_esquema].[Maestra] 
-	GROUP BY ALMACEN_Localidad 
-	HAVING ALMACEN_Localidad IS NOT NULL;
+	INSERT INTO LOS_ANTI_PALA.Localidad(localidad_nombre, provincia_codigo)
+	SELECT DISTINCT
+		m.ALMACEN_Localidad,
+		p.provincia_codigo
+	FROM [GD2C2024].[gd_esquema].[Maestra] m
+	JOIN LOS_ANTI_PALA.Provincia p ON m.ALMACEN_PROVINCIA = p.provincia_nombre
 	PRINT ('Tabla "Localidad" migrada')
 END
 GO
@@ -905,8 +906,8 @@ BEGIN TRY
 EXEC migrar_tabla_domicilio;
 EXEC migrar_tabla_modelo;
 EXEC migrar_tabla_marca;
-EXEC migrar_tabla_localidad;
 EXEC migrar_tabla_provincia;
+EXEC migrar_tabla_localidad;
 EXEC migrar_tabla_rubro;
 EXEC migrar_tabla_subrubro;
 EXEC migrar_tabla_producto;
