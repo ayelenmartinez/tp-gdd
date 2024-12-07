@@ -456,7 +456,7 @@ SELECT
 	t.tiempo_codigo,
 	mp.medio_pago_codigo,
 	u.ubicacion_codigo,
-	rs.rubro_subrubro_codigo
+	rs.rubro
 
 FROM LOS_ANTI_PALA.Venta v 
 JOIN LOS_ANTI_PALA.Pago p 
@@ -477,16 +477,14 @@ JOIN LOS_ANTI_PALA.BI_Ubicacion u
 	ON u.ubicacion_localidad = d.domicilio_localidad AND u.ubicacion_provincia = d.domicilio_provincia
 JOIN LOS_ANTI_PALA.Detalle_de_venta dv
 	ON dv.venta_codigo = v.venta_codigo
-JOIN LOS_ANTI_PALA.Publicacion pu
-	ON pu.publicacion_codigo = dv.publicacion_codigo
-JOIN LOS_ANTI_PALA.Producto prod
-	ON prod.publicacion_codigo = pu.publicacion_codigo
-JOIN LOS_ANTI_PALA.Subrubro s
-	ON s.subrubro_codigo = prod.subrubro_codigo
-JOIN LOS_ANTI_PALA.BI_Rubro_Subrubro rs
-	ON rs.rubro_subrubro_codigo = s.subrubro_codigo
+JOIN LOS_ANTI_PALA.Publicacion pub 
+	ON pub.publicacion_codigo = dv.publicacion_codigo
+JOIN LOS_ANTI_PALA.Rubro rub
+	ON rub.rubro_codigo = pub.rubro_codigo
+JOIN LOS_ANTI_PALA.BI_Rubro_Subrubro rs 
+	ON rs.rubro = rub.rubro_codigo
 	
-GROUP BY re.rango_etario_codigo, t.tiempo_codigo, mp.medio_pago_codigo, u.ubicacion_codigo, rs.rubro_subrubro_codigo
+GROUP BY re.rango_etario_codigo, t.tiempo_codigo, mp.medio_pago_codigo, u.ubicacion_codigo, rs.rubro
 PRINT ('Tabla "BI_Hecho_Venta" migrada correctamente');
 END
 
@@ -549,8 +547,7 @@ GO
 
 
 -- 2) Promedio de Stock Inicial.
-
-CREATE OR ALTER VIEW LOS_ANTI_PALA.promedio_stock_inicial AS
+CREATE OR ALTER VIEW LOS_ANTI_PALA.BI_promedio_stock_inicial AS
 SELECT
 	p.publicacion_stock_inicial_promedio,
 	m.marca_descripcion,
@@ -582,12 +579,48 @@ GO
 
 
 -- 4) Rendimiento de rubros. 
-
-
+CREATE OR ALTER VIEW LOS_ANTI_PALA.BI_mayor_rendimiento_rubros AS
+SELECT
+    t.tiempo_anio,
+    t.tiempo_cuatrimestre,
+    u.ubicacion_localidad,
+    re.rango_etario,
+    r.rubro,
+    SUM(v.venta_monto_total) AS venta_monto_total
+FROM 
+    LOS_ANTI_PALA.BI_Hecho_Venta v
+    JOIN LOS_ANTI_PALA.BI_Tiempo t ON v.tiempo_codigo = t.tiempo_codigo
+    JOIN LOS_ANTI_PALA.BI_Ubicacion u ON v.ubicacion_codigo = u.ubicacion_codigo
+    JOIN LOS_ANTI_PALA.BI_Rango_Etario re ON v.rango_etario_codigo = re.rango_etario_codigo
+    JOIN LOS_ANTI_PALA.BI_Rubro_Subrubro r ON v.rubro_subrubro_codigo = r.rubro_subrubro_codigo
+GROUP BY 
+    t.tiempo_anio,
+    t.tiempo_cuatrimestre,
+    u.ubicacion_localidad,
+    re.rango_etario,
+    r.rubro
+HAVING 
+    SUM(v.venta_monto_total) IN (
+        SELECT TOP 5 
+            SUM(v1.venta_monto_total)
+        FROM 
+            LOS_ANTI_PALA.BI_Hecho_Venta v1
+            JOIN LOS_ANTI_PALA.BI_Tiempo t1 ON v1.tiempo_codigo = t1.tiempo_codigo
+            JOIN LOS_ANTI_PALA.BI_Ubicacion u1 ON v1.ubicacion_codigo = u1.ubicacion_codigo
+            JOIN LOS_ANTI_PALA.BI_Rango_Etario r1 ON v1.rango_etario_codigo = r1.rango_etario_codigo
+            JOIN LOS_ANTI_PALA.BI_Rubro_Subrubro ru1 ON v1.rubro_subrubro_codigo = ru1.rubro_subrubro_codigo
+        WHERE 
+            t1.tiempo_anio = t.tiempo_anio
+            AND t1.tiempo_cuatrimestre = t.tiempo_cuatrimestre
+            AND u1.ubicacion_localidad = u.ubicacion_localidad
+            AND r1.rango_etario = re.rango_etario
+        GROUP BY ru1.rubro
+        ORDER BY SUM(v1.venta_monto_total) DESC
+    )
+GO
 
 
 -- 6) Pago en cuotas. 
-
 CREATE OR ALTER VIEW LOS_ANTI_PALA.BI_mayor_importe_cuotas AS
 SELECT 
 	TOP 3
@@ -610,9 +643,10 @@ GROUP BY
     mp.tipo_medio_pago
 ORDER BY monto_total_cuotas DESC;
 GO
--- 7) Porcentaje de cumplimiento de envíos en tiempos programados.
 
-CREATE OR ALTER VIEW LOS_ANTI_PALA.porcentaje_cumplimiento_envios AS
+
+-- 7) Porcentaje de cumplimiento de envíos en tiempos programados.
+CREATE OR ALTER VIEW LOS_ANTI_PALA.BI_porcentaje_cumplimiento_envios AS
 SELECT
 	t.tiempo_anio,
 	t.tiempo_mes,
@@ -630,8 +664,7 @@ GO
 
 
 -- 8) Localidades que pagan mayor costo de envío.Las 5 localidades (tomando la localidad del cliente) con mayor costo de envío.
-
-CREATE OR ALTER VIEW LOS_ANTI_PALA.localidad_paga_mayor_costo_envio AS
+CREATE OR ALTER VIEW LOS_ANTI_PALA.BI_localidad_paga_mayor_costo_envio AS
 SELECT 
 	TOP 5 
 	u.ubicacion_localidad,
@@ -646,7 +679,6 @@ GO
 
 
 -- 9) Porcentaje de facturación por concepto 
-
 CREATE OR ALTER VIEW LOS_ANTI_PALA.BI_porcentaje_facturacion_concepto AS
 SELECT
     t.tiempo_anio,
@@ -664,7 +696,6 @@ GO
 
 
 -- 10) Facturación por provincia. 
-
 CREATE OR ALTER VIEW LOS_ANTI_PALA.BI_facturacion_por_provincia AS
 SELECT
     t.tiempo_anio,
