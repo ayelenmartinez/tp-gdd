@@ -74,11 +74,13 @@ CREATE TABLE LOS_ANTI_PALA.BI_Marca (
 ---------- Tablas de hecho ----------
 
 CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Venta (
+	venta_monto_total DECIMAL(18,0) NOT NULL DEFAULT 0,
+	venta_monto_total_cuotas DECIMAL(18,0) NOT NULL,
+	cantidad_ventas BIGINT NOT NULL DEFAULT 0,
 	tiempo_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tiempo NOT NULL,
 	ubicacion_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Ubicacion NOT NULL,
 	rubro_subrubro_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Rubro_subrubro NOT NULL,
 	rango_etario_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Rango_etario NOT NULL,
-	rango_horario_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Rango_horario NOT NULL,
 	tipo_medio_pago_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tipo_medio_pago NOT NULL,
 );
 
@@ -109,13 +111,8 @@ CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Facturacion (
 ---------- Funciones auxiliares ----------
 
 IF OBJECT_ID('LOS_ANTI_PALA.obtenerCuatrimestre', 'FN') IS NOT NULL
-BEGIN
-    DROP FUNCTION LOS_ANTI_PALA.obtenerCuatrimestre;
-END
-
+DROP FUNCTION LOS_ANTI_PALA.obtenerCuatrimestre;
 GO
-
-
 CREATE FUNCTION LOS_ANTI_PALA.obtenerCuatrimestre (@fecha DATE)
 RETURNS SMALLINT
 AS BEGIN
@@ -128,7 +125,31 @@ SET @nro_cuatrimestre =
 	END
 
 RETURN @nro_cuatrimestre
+END
+GO
 
+
+
+IF OBJECT_ID('LOS_ANTI_PALA.calcularRangoEtario', 'FN') IS NOT NULL
+DROP FUNCTION LOS_ANTI_PALA.calcularRangoEtario;
+GO
+CREATE FUNCTION LOS_ANTI_PALA.calcularRangoEtario (@fecha DATE)
+RETURNS NVARCHAR(11)
+AS
+BEGIN
+DECLARE @edad INT
+DECLARE @rango NVARCHAR(11)
+SET @edad = CAST(DATEDIFF(DAY, @fecha, GETDATE()) / 365.25 AS INT)
+
+SET @rango =
+	CASE
+		WHEN @edad < 25 THEN '< 25'
+		WHEN @edad >= 25 AND @edad < 35 THEN '25 - 35'
+		WHEN @edad >= 35 AND @edad < 50 THEN '35 - 50'
+		WHEN @edad >= 50 THEN '> 50'
+	END
+
+RETURN @rango
 END
 GO
 
@@ -246,7 +267,17 @@ BEGIN
 	SELECT DISTINCT 
 		d.domicilio_provincia,
 		d.domicilio_localidad
-		FROM LOS_ANTI_PALA.Domicilio d 
+	FROM LOS_ANTI_PALA.Domicilio d 
+		UNION
+	SELECT DISTINCT
+		v.vendedor_domicilio_provincia,
+		v.vendedor_domicilio_localidad
+	FROM LOS_ANTI_PALA.Vendedor v
+		UNION
+	SELECT DISTINCT
+		l.localidad_nombre,
+		p.provincia_nombre
+	FROM LOS_ANTI_PALA.Localidad l JOIN LOS_ANTI_PALA.Provincia p ON l.provincia_codigo = p.provincia_codigo
 
 	PRINT ('Tabla "Ubicacion" del BI migrada')
 END
@@ -345,7 +376,6 @@ CREATE PROCEDURE migrar_tabla_bi_hecho_envio
 AS
 BEGIN
 	INSERT INTO LOS_ANTI_PALA.BI_Hecho_Envio(tiempo_codigo,	ubicacion_codigo,tipo_envio_codigo, envio_cumplido,envio_costo)
-
 	SELECT DISTINCT
 		t.tiempo_codigo,
 		u.ubicacion_codigo,
@@ -371,10 +401,9 @@ BEGIN
 END
 GO
 
-IF OBJECT_ID('migrar_tabla_bi_hecho_facturacion', 'P') IS NOT NULL  --Esta bien creada la migracion BI, pero falta corregir migracion factura
+IF OBJECT_ID('migrar_tabla_bi_hecho_facturacion', 'P') IS NOT NULL  
     DROP PROCEDURE migrar_tabla_bi_hecho_facturacion;
 GO
-
 CREATE PROCEDURE migrar_tabla_bi_hecho_facturacion
 AS
 BEGIN
@@ -385,10 +414,10 @@ BEGIN
         factura_total,
 		ubicacion_codigo
     )
-    SELECT DISTINCT
+    SELECT 
         t.tiempo_codigo,
 		cf.concepto_factura_codigo,
-		f.factura_total,
+		SUM(f.factura_total) as Total_facturado,
 		ub.ubicacion_codigo
 
     FROM LOS_ANTI_PALA.BI_Tiempo t
@@ -403,19 +432,68 @@ BEGIN
 	JOIN LOS_ANTI_PALA.BI_Ubicacion ub
 		ON ub.ubicacion_localidad = v.vendedor_domicilio_localidad 
 		AND ub.ubicacion_provincia = v.vendedor_domicilio_provincia
-
+	GROUP BY t.tiempo_codigo, cf.concepto_factura_codigo, ubicacion_codigo
     PRINT ('Tabla "BI_Hecho_Facturacion" migrada correctamente');
     
 END;
 GO
 
+IF OBJECT_ID('migrar_tabla_bi_hecho_venta', 'P') IS NOT NULL  
+    DROP PROCEDURE migrar_tabla_bi_hecho_venta;
+GO
+CREATE PROCEDURE migrar_tabla_bi_hecho_venta
+AS
+BEGIN
+INSERT INTO LOS_ANTI_PALA.BI_Hecho_Venta(
+		cantidad_ventas, venta_monto_total, venta_monto_total_cuotas,
+		rango_etario_codigo, tiempo_codigo, 
+		tipo_medio_pago_codigo, ubicacion_codigo, rubro_subrubro_codigo)
+SELECT
+	COUNT (DISTINCT v.venta_codigo),
+	SUM(v.venta_total),
+	ISNULL(SUM(p.pago_importe),0),
+	re.rango_etario_codigo,
+	t.tiempo_codigo,
+	mp.medio_pago_codigo,
+	u.ubicacion_codigo,
+	rs.rubro_subrubro_codigo
 
+FROM LOS_ANTI_PALA.Venta v 
+JOIN LOS_ANTI_PALA.Pago p 
+	ON v.venta_codigo = p.venta_codigo
+JOIN LOS_ANTI_PALA.Cliente c
+	ON v.usuario_codigo = c.usuario_codigo
+JOIN LOS_ANTI_PALA.BI_Rango_Etario re 
+	ON re.rango_etario = LOS_ANTI_PALA.calcularRangoEtario(c.cliente_fecha_nac)
+JOIN LOS_ANTI_PALA.BI_Tiempo t
+	ON t.tiempo_anio = YEAR(v.venta_fecha) AND t.tiempo_mes = MONTH(v.venta_fecha) AND t.tiempo_cuatrimestre = LOS_ANTI_PALA.obtenerCuatrimestre(v.venta_fecha)
+JOIN LOS_ANTI_PALA.Medio_de_pago mp 
+	ON mp.medio_pago_codigo = p.medio_pago_codigo
+JOIN LOS_ANTI_PALA.Domicilio_por_cliente dc
+	ON c.usuario_codigo = dc.usuario_codigo
+JOIN LOS_ANTI_PALA.Domicilio d
+	ON d.domicilio_codigo = dc.domicilio_codigo
+JOIN LOS_ANTI_PALA.BI_Ubicacion u
+	ON u.ubicacion_localidad = d.domicilio_localidad AND u.ubicacion_provincia = d.domicilio_provincia
+JOIN LOS_ANTI_PALA.Detalle_de_venta dv
+	ON dv.venta_codigo = v.venta_codigo
+JOIN LOS_ANTI_PALA.Publicacion pu
+	ON pu.publicacion_codigo = dv.publicacion_codigo
+JOIN LOS_ANTI_PALA.Producto prod
+	ON prod.publicacion_codigo = pu.publicacion_codigo
+JOIN LOS_ANTI_PALA.Subrubro s
+	ON s.subrubro_codigo = prod.subrubro_codigo
+JOIN LOS_ANTI_PALA.BI_Rubro_Subrubro rs
+	ON rs.rubro_subrubro_codigo = s.subrubro_codigo
+	
+GROUP BY re.rango_etario_codigo, t.tiempo_codigo, mp.medio_pago_codigo, u.ubicacion_codigo, rs.rubro_subrubro_codigo
+PRINT ('Tabla "BI_Hecho_Venta" migrada correctamente');
+END
 
 ---------- Fin migracion Hechos ----------
 
 
 ------------------------------------------------------------ FIN MIGRACION DE TABLAS ------------------------------------------------------------
-
 GO
 BEGIN TRANSACTION
 BEGIN TRY
@@ -430,6 +508,7 @@ EXEC migrar_tabla_bi_tiempo;
 EXEC migrar_tabla_bi_hecho_publicacion;
 EXEC migrar_tabla_bi_hecho_envio;
 EXEC migrar_tabla_bi_hecho_facturacion;
+EXEC migrar_tabla_bi_hecho_venta;
 	PRINT '--- Todas las tablas del BI fueron migradas correctamente --';
 COMMIT TRANSACTION
 END TRY
@@ -440,14 +519,18 @@ END CATCH
 
 
 ------------------------------------------------------------ VISTAS ------------------------------------------------------------
-GO
+
+---------- Drop preventivo de views ----------
+---------- Fin drop preventivo de views ----------
+
+
 
 -- 1) Promedio de tiempo de publicaciones.
-
+GO
 CREATE OR ALTER VIEW LOS_ANTI_PALA.BI_promedio_tiempo_publicaciones AS
 SELECT
-    t.tiempo_anio AS anio, 
-    t.tiempo_cuatrimestre AS cuatrimestre,
+    t.tiempo_anio, 
+    t.tiempo_cuatrimestre,
     r.subrubro,
     p.publicacion_vigencia AS 'Promedio de tiempo de publicaciones'
 
@@ -464,6 +547,7 @@ GROUP BY
 
 GO
 
+
 -- 2) Promedio de Stock Inicial.
 
 CREATE OR ALTER VIEW LOS_ANTI_PALA.promedio_stock_inicial AS
@@ -478,13 +562,61 @@ JOIN LOS_ANTI_PALA.BI_Marca m ON p.marca_codigo = m.marca_codigo
 GROUP BY p.publicacion_stock_inicial_promedio, m.marca_descripcion, t.tiempo_anio
 GO
 
+
+-- 3) Venta promedio mensual.
+CREATE OR ALTER VIEW LOS_ANTI_PALA.BI_venta_promedio_mensual AS
+SELECT
+	t.tiempo_anio,
+	t.tiempo_mes,
+	u.ubicacion_provincia,
+	((SUM(v.venta_monto_total))/
+		(SUM(v.cantidad_ventas))) as venta_promedio
+FROM LOS_ANTI_PALA.BI_Hecho_Venta v
+	 JOIN LOS_ANTI_PALA.BI_Ubicacion u on v.ubicacion_codigo = u.ubicacion_codigo
+	 JOIN LOS_ANTI_PALA.BI_Tiempo t on v.tiempo_codigo = t.tiempo_codigo
+GROUP BY 
+	t.tiempo_anio,
+	t.tiempo_mes,
+	u.ubicacion_provincia
+GO
+
+
+-- 4) Rendimiento de rubros. 
+
+
+
+
+-- 6) Pago en cuotas. 
+
+CREATE OR ALTER VIEW LOS_ANTI_PALA.BI_mayor_importe_cuotas AS
+SELECT 
+	TOP 3
+    u.ubicacion_localidad,
+    t.tiempo_anio,
+    t.tiempo_mes,
+    mp.tipo_medio_pago,
+	MAX(v.venta_monto_total_cuotas) AS monto_total_cuotas
+FROM LOS_ANTI_PALA.BI_Hecho_Venta v
+	 JOIN LOS_ANTI_PALA.BI_Ubicacion u 
+		ON v.ubicacion_codigo = u.ubicacion_codigo
+	 JOIN LOS_ANTI_PALA.BI_Tiempo t 
+		ON v.tiempo_codigo = t.tiempo_codigo
+	 JOIN LOS_ANTI_PALA.BI_Tipo_Medio_Pago mp 
+		ON v.tipo_medio_pago_codigo = mp.tipo_medio_pago_codigo
+GROUP BY 
+    u.ubicacion_localidad, 
+    t.tiempo_anio, 
+    t.tiempo_mes, 
+    mp.tipo_medio_pago
+ORDER BY monto_total_cuotas DESC;
+GO
 -- 7) Porcentaje de cumplimiento de envíos en tiempos programados.
 
 CREATE OR ALTER VIEW LOS_ANTI_PALA.porcentaje_cumplimiento_envios AS
 SELECT
-	t.tiempo_anio AS anio,
-	t.tiempo_mes AS mes,
-	u.ubicacion_provincia AS provincia,
+	t.tiempo_anio,
+	t.tiempo_mes,
+	u.ubicacion_provincia,
 	COUNT(CASE WHEN e.envio_cumplido = 1 THEN 1 END) * 100.0 / COUNT(*) AS porcentaje_cumplimiento
 
 FROM LOS_ANTI_PALA.BI_Hecho_Envio e 
@@ -496,20 +628,54 @@ GROUP BY
 	u.ubicacion_provincia
 GO
 
+
 -- 8) Localidades que pagan mayor costo de envío.Las 5 localidades (tomando la localidad del cliente) con mayor costo de envío.
+
 CREATE OR ALTER VIEW LOS_ANTI_PALA.localidad_paga_mayor_costo_envio AS
 SELECT 
 	TOP 5 
-	d.domicilio_localidad AS Localidad,
-	e.envio_costo AS Costo_envio
+	u.ubicacion_localidad,
+	MAX(e.envio_costo) AS Costo_envio
 	
 	FROM LOS_ANTI_PALA.BI_Hecho_Envio e
 	JOIN LOS_ANTI_PALA.BI_Ubicacion u 
 		ON u.ubicacion_codigo = e.ubicacion_codigo
-	JOIN LOS_ANTI_PALA.Domicilio d
-		ON u.ubicacion_localidad = d.domicilio_localidad AND u.ubicacion_provincia = d.domicilio_provincia
-	GROUP BY d.domicilio_localidad, e.envio_costo
-	ORDER BY e.envio_costo desc
+	GROUP BY u.ubicacion_localidad
+	ORDER BY MAX(e.envio_costo) desc
 GO
 
 
+-- 9) Porcentaje de facturación por concepto 
+
+CREATE OR ALTER VIEW LOS_ANTI_PALA.BI_porcentaje_facturacion_concepto AS
+SELECT
+    t.tiempo_anio,
+    t.tiempo_mes,
+    (SUM(f.factura_total) * 100.0) / 
+					(SELECT SUM(factura_total) FROM LOS_ANTI_PALA.BI_Hecho_Facturacion) AS porcentaje_facturacion,
+	f.facturacion_concepto
+FROM LOS_ANTI_PALA.BI_Hecho_Facturacion f
+JOIN LOS_ANTI_PALA.BI_Tiempo t ON f.tiempo_codigo = t.tiempo_codigo
+GROUP BY 
+    t.tiempo_anio,
+    t.tiempo_mes,
+	f.facturacion_concepto
+GO
+
+
+-- 10) Facturación por provincia. 
+
+CREATE OR ALTER VIEW LOS_ANTI_PALA.BI_facturacion_por_provincia AS
+SELECT
+    t.tiempo_anio,
+    t.tiempo_cuatrimestre,
+    u.ubicacion_provincia,
+    SUM(v.venta_monto_total) AS monto_facturado
+FROM LOS_ANTI_PALA.BI_Hecho_Venta v
+	 JOIN LOS_ANTI_PALA.BI_Tiempo t ON v.tiempo_codigo = t.tiempo_codigo
+	 JOIN LOS_ANTI_PALA.BI_Ubicacion u ON v.ubicacion_codigo = u.ubicacion_codigo
+GROUP BY 
+    t.tiempo_anio,
+    t.tiempo_cuatrimestre,
+    u.ubicacion_provincia
+GO
