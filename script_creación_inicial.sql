@@ -19,9 +19,9 @@ IF OBJECT_ID('LOS_ANTI_PALA.Factura', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.
 
 IF OBJECT_ID('LOS_ANTI_PALA.Envio', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Envio;
 IF OBJECT_ID('LOS_ANTI_PALA.Detalle_de_venta', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Detalle_de_venta;
+IF OBJECT_ID('LOS_ANTI_PALA.Pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Pago;
 IF OBJECT_ID('LOS_ANTI_PALA.Venta', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Venta;
 
-IF OBJECT_ID('LOS_ANTI_PALA.Pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Pago;
 IF OBJECT_ID('LOS_ANTI_PALA.Detalle_de_pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Detalle_de_pago;
 IF OBJECT_ID('LOS_ANTI_PALA.Medio_de_pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Medio_de_pago;
 
@@ -195,20 +195,22 @@ CREATE TABLE LOS_ANTI_PALA.Detalle_de_pago (
 )
 
 
-CREATE TABLE LOS_ANTI_PALA.Pago (
-	pago_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
-	pago_importe DECIMAL (18,2) NOT NULL DEFAULT 0,
-	pago_fecha DATE NOT NULL,
-	medio_pago_codigo BIGINT REFERENCES LOS_ANTI_PALA.Medio_de_pago NOT NULL,
-	detalle_pago_codigo BIGINT REFERENCES LOS_ANTI_PALA.Detalle_de_pago,
-)
-
 
 CREATE TABLE LOS_ANTI_PALA.Venta (
 	venta_codigo DECIMAL (18,0) PRIMARY KEY,
 	venta_fecha DATE NOT NULL,
 	venta_total DECIMAL (18,2) NOT NULL DEFAULT 0,
 	usuario_codigo BIGINT NOT NULL REFERENCES LOS_ANTI_PALA.Usuario,
+)
+
+
+CREATE TABLE LOS_ANTI_PALA.Pago (
+	pago_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
+	pago_importe DECIMAL (18,2) NOT NULL DEFAULT 0,
+	pago_fecha DATE NOT NULL,
+	medio_pago_codigo BIGINT REFERENCES LOS_ANTI_PALA.Medio_de_pago NOT NULL,
+	detalle_pago_codigo BIGINT REFERENCES LOS_ANTI_PALA.Detalle_de_pago NOT NULL,
+	venta_codigo DECIMAL(18,0) REFERENCES LOS_ANTI_PALA.Venta NOT NULL,
 )
 
 
@@ -367,21 +369,20 @@ GO
 CREATE PROCEDURE migrar_tabla_pago
 AS
 BEGIN
-	INSERT INTO LOS_ANTI_PALA.Pago(pago_importe,pago_fecha, medio_pago_codigo, detalle_pago_codigo)
+	INSERT INTO LOS_ANTI_PALA.Pago(pago_importe,pago_fecha, medio_pago_codigo, detalle_pago_codigo, venta_codigo)
 	SELECT 
-		[PAGO_IMPORTE],
-		[PAGO_FECHA],
-		(	SELECT medio_pago_codigo FROM LOS_ANTI_PALA.Medio_de_pago 
-			WHERE	LOS_ANTI_PALA.Medio_de_pago.medio_pago_descripcion = [GD2C2024].[gd_esquema].[Maestra].[PAGO_MEDIO_PAGO] 
-				AND LOS_ANTI_PALA.Medio_de_pago.medio_pago_tipo = [GD2C2024].[gd_esquema].[Maestra].[PAGO_TIPO_MEDIO_PAGO] 
-			GROUP BY medio_pago_codigo 
-		) AS medio_pago_codigo,
-		(	SELECT detalle_pago_codigo FROM LOS_ANTI_PALA.Detalle_de_pago 
-			WHERE	LOS_ANTI_PALA.Detalle_de_pago.detalle_pago_nro_tarjeta = [GD2C2024].[gd_esquema].[Maestra].[PAGO_NRO_TARJETA] 
-				AND LOS_ANTI_PALA.Detalle_de_pago.detalle_pago_venc_tarjeta = [GD2C2024].[gd_esquema].[Maestra].[PAGO_FECHA_VENC_TARJETA] 
-			GROUP BY detalle_pago_codigo 
-		) AS Detalle_pago_codigo
-	FROM [GD2C2024].[gd_esquema].[Maestra]
+		m.[PAGO_IMPORTE],
+		m.[PAGO_FECHA],
+		mp.medio_pago_codigo,
+		dp.detalle_pago_codigo,
+		m.VENTA_CODIGO
+	FROM [GD2C2024].[gd_esquema].[Maestra] m
+	JOIN LOS_ANTI_PALA.Medio_de_pago mp
+	ON mp.medio_pago_descripcion = m.[PAGO_MEDIO_PAGO] 
+		AND mp.medio_pago_tipo = m.[PAGO_TIPO_MEDIO_PAGO] 
+	JOIN LOS_ANTI_PALA.Detalle_de_pago dp
+	ON dp.detalle_pago_nro_tarjeta = m.PAGO_NRO_TARJETA
+		AND dp.detalle_pago_venc_tarjeta = m.PAGO_FECHA_VENC_TARJETA
 	WHERE	[PAGO_IMPORTE] IS NOT NULL 
 		AND [PAGO_FECHA] IS NOT NULL
 	PRINT ('Tabla "Pago" migrada')
@@ -913,7 +914,6 @@ EXEC migrar_tabla_subrubro;
 EXEC migrar_tabla_producto;
 EXEC migrar_tabla_medio_de_pago;
 EXEC migrar_tabla_detalle_de_pago;
-EXEC migrar_tabla_pago;
 EXEC migrar_tabla_tipo_envio;
 EXEC migrar_tabla_usuario;
 EXEC migrar_tabla_vendedor;
@@ -922,6 +922,7 @@ EXEC migrar_tabla_publicacion;
 EXEC migrar_tabla_cliente;
 EXEC migrar_tabla_domicilio_por_cliente;
 EXEC migrar_tabla_venta;
+EXEC migrar_tabla_pago;
 EXEC migrar_tabla_detalle_venta;
 EXEC migrar_tabla_envio;
 EXEC migrar_tabla_factura;
