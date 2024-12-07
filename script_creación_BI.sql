@@ -14,7 +14,6 @@ IF OBJECT_ID('LOS_ANTI_PALA.BI_Marca', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA
 IF OBJECT_ID('LOS_ANTI_PALA.BI_Rubro_Subrubro', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.BI_Rubro_Subrubro;
 IF OBJECT_ID('LOS_ANTI_PALA.BI_Tipo_medio_pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.BI_Tipo_medio_pago;
 IF OBJECT_ID('LOS_ANTI_PALA.BI_Tipo_envio', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.BI_Tipo_envio;
-IF OBJECT_ID('LOS_ANTI_PALA.BI_Rango_horario', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.BI_Rango_horario;
 IF OBJECT_ID('LOS_ANTI_PALA.BI_Rango_etario', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.BI_Rango_etario;
 IF OBJECT_ID('LOS_ANTI_PALA.BI_Ubicacion', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.BI_Ubicacion;
 IF OBJECT_ID('LOS_ANTI_PALA.BI_Tiempo', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.BI_Tiempo;
@@ -45,10 +44,6 @@ CREATE TABLE LOS_ANTI_PALA.BI_Rango_Etario (
 	rango_etario NVARCHAR(255),
 );
 
-CREATE TABLE LOS_ANTI_PALA.BI_Rango_Horario (
-	rango_horario_codigo BIGINT IDENTITY(1,1) PRIMARY KEY NOT NULL,
-	rango NVARCHAR(50),
-);
 
 CREATE TABLE LOS_ANTI_PALA.BI_Tipo_Envio (
 	tipo_envio_codigo BIGINT PRIMARY KEY NOT NULL,
@@ -74,6 +69,7 @@ CREATE TABLE LOS_ANTI_PALA.BI_Marca (
 ---------- Tablas de hecho ----------
 
 CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Venta (
+	hecho_venta_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	venta_monto_total DECIMAL(18,0) NOT NULL DEFAULT 0,
 	venta_monto_total_cuotas DECIMAL(18,0) NOT NULL,
 	cantidad_ventas BIGINT NOT NULL DEFAULT 0,
@@ -85,6 +81,7 @@ CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Venta (
 );
 
 CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Publicacion (
+	hecho_publicacion_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	codigo_tiempo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tiempo NOT NULL,
 	rubro_subrubro_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Rubro_Subrubro NOT NULL,
 	marca_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Marca NOT NULL,
@@ -93,6 +90,7 @@ CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Publicacion (
 );
 
 CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Envio (
+	hecho_envio_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
 	tiempo_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tiempo NOT NULL,
 	ubicacion_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Ubicacion NOT NULL,
 	tipo_envio_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tipo_envio NOT NULL,
@@ -100,7 +98,8 @@ CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Envio (
 	envio_costo DECIMAL (18,2)
 );
 
-CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Facturacion (
+CREATE TABLE LOS_ANTI_PALA.BI_Hecho_Facturacion (	
+	hecho_envio_codigo BIGINT IDENTITY(1,1) PRIMARY KEY,
     tiempo_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Tiempo NOT NULL,
 	ubicacion_codigo BIGINT REFERENCES LOS_ANTI_PALA.BI_Ubicacion NOT NULL,
     facturacion_concepto NVARCHAR(50),
@@ -175,22 +174,6 @@ BEGIN
 	PRINT ('Tabla "Rango etario" del BI migrada')
 END
 
-GO
-
-IF OBJECT_ID('migrar_tabla_bi_rango_horario', 'P') IS NOT NULL
-    DROP PROCEDURE migrar_tabla_bi_rango_horario;
-GO
-CREATE PROCEDURE migrar_tabla_bi_rango_horario
-AS
-BEGIN
-	INSERT INTO LOS_ANTI_PALA.BI_Rango_Horario (rango)
-	VALUES 
-		('00:00 - 06:00'), 
-		('06:00 - 12:00'), 
-		('12:00 - 18:00'), 
-		('18:00 - 24:00');
-	PRINT ('Tabla "Rango horario" del BI migrada')
-END
 GO
 
 
@@ -498,7 +481,6 @@ BEGIN TRY
 EXEC migrar_tabla_bi_rubro_subrubro;
 EXEC migrar_tabla_bi_marca;
 EXEC migrar_tabla_bi_rango_etario;
-EXEC migrar_tabla_bi_rango_horario;
 EXEC migrar_tabla_bi_tipo_envio;
 EXEC migrar_tabla_bi_ubicacion;
 EXEC migrar_tabla_bi_tipo_pago;
@@ -545,7 +527,6 @@ GROUP BY
 
 GO
 
-
 -- 2) Promedio de Stock Inicial.
 CREATE OR ALTER VIEW LOS_ANTI_PALA.BI_promedio_stock_inicial AS
 SELECT
@@ -580,13 +561,13 @@ GO
 
 -- 4) Rendimiento de rubros. 
 CREATE OR ALTER VIEW LOS_ANTI_PALA.BI_mayor_rendimiento_rubros AS
-SELECT
+SELECT TOP 5
     t.tiempo_anio,
     t.tiempo_cuatrimestre,
     u.ubicacion_localidad,
     re.rango_etario,
     r.rubro,
-    SUM(v.venta_monto_total) AS venta_monto_total
+    SUM(v.venta_monto_total) AS venta_total
 FROM 
     LOS_ANTI_PALA.BI_Hecho_Venta v
     JOIN LOS_ANTI_PALA.BI_Tiempo t ON v.tiempo_codigo = t.tiempo_codigo
@@ -599,24 +580,7 @@ GROUP BY
     u.ubicacion_localidad,
     re.rango_etario,
     r.rubro
-HAVING 
-    SUM(v.venta_monto_total) IN (
-        SELECT TOP 5 
-            SUM(v1.venta_monto_total)
-        FROM 
-            LOS_ANTI_PALA.BI_Hecho_Venta v1
-            JOIN LOS_ANTI_PALA.BI_Tiempo t1 ON v1.tiempo_codigo = t1.tiempo_codigo
-            JOIN LOS_ANTI_PALA.BI_Ubicacion u1 ON v1.ubicacion_codigo = u1.ubicacion_codigo
-            JOIN LOS_ANTI_PALA.BI_Rango_Etario r1 ON v1.rango_etario_codigo = r1.rango_etario_codigo
-            JOIN LOS_ANTI_PALA.BI_Rubro_Subrubro ru1 ON v1.rubro_subrubro_codigo = ru1.rubro_subrubro_codigo
-        WHERE 
-            t1.tiempo_anio = t.tiempo_anio
-            AND t1.tiempo_cuatrimestre = t.tiempo_cuatrimestre
-            AND u1.ubicacion_localidad = u.ubicacion_localidad
-            AND r1.rango_etario = re.rango_etario
-        GROUP BY ru1.rubro
-        ORDER BY SUM(v1.venta_monto_total) DESC
-    )
+ORDER BY SUM(v.venta_monto_total) DESC
 GO
 
 
