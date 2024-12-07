@@ -701,10 +701,10 @@ SELECT
     t.tiempo_anio,
     t.tiempo_cuatrimestre,
     u.ubicacion_provincia,
-    SUM(v.venta_monto_total) AS monto_facturado
-FROM LOS_ANTI_PALA.BI_Hecho_Venta v
-	 JOIN LOS_ANTI_PALA.BI_Tiempo t ON v.tiempo_codigo = t.tiempo_codigo
-	 JOIN LOS_ANTI_PALA.BI_Ubicacion u ON v.ubicacion_codigo = u.ubicacion_codigo
+    SUM(f.factura_total) AS monto_facturado
+FROM LOS_ANTI_PALA.BI_Hecho_Facturacion f
+	 JOIN LOS_ANTI_PALA.BI_Tiempo t ON f.tiempo_codigo = t.tiempo_codigo
+	 JOIN LOS_ANTI_PALA.BI_Ubicacion u ON f.ubicacion_codigo = u.ubicacion_codigo
 GROUP BY 
     t.tiempo_anio,
     t.tiempo_cuatrimestre,
