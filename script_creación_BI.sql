@@ -280,7 +280,7 @@ BEGIN
 		YEAR(p.pago_fecha),
 		LOS_ANTI_PALA.obtenerCuatrimestre(p.pago_fecha), 
 		MONTH(p.pago_fecha) AS MES
-	FROM LOS_ANTI_PALA.Pago P
+	FROM LOS_ANTI_PALA.Pago p
 
 	UNION 
 
@@ -347,9 +347,9 @@ BEGIN
 	INSERT INTO LOS_ANTI_PALA.BI_Hecho_Envio(tiempo_codigo,	ubicacion_codigo,tipo_envio_codigo, envio_cumplido,envio_costo)
 
 	SELECT DISTINCT
-	t.tiempo_codigo,
-	u.ubicacion_codigo,
-	e.tipo_envio_codigo,
+		t.tiempo_codigo,
+		u.ubicacion_codigo,
+		e.tipo_envio_codigo,
 	CASE 
 		WHEN DATEDIFF(d,env.envio_fecha_entrega,env.envio_fecha_programada) >= 0 THEN 1
 		ELSE 0
@@ -381,36 +381,28 @@ BEGIN
 
     INSERT INTO LOS_ANTI_PALA.BI_Hecho_Facturacion (
         tiempo_codigo,
-        ubicacion_codigo,
         facturacion_concepto,
-        factura_total
+        factura_total,
+		ubicacion_codigo
     )
-    SELECT 
+    SELECT DISTINCT
         t.tiempo_codigo,
-        u.ubicacion_codigo,
-        cf.concepto_factura_tipo,
-        f.factura_total
-    FROM 
-        LOS_ANTI_PALA.Factura f
-    JOIN 
-        LOS_ANTI_PALA.BI_Tiempo t
-    ON t.tiempo_anio = YEAR(f.factura_fecha)
-    AND t.tiempo_mes = MONTH(f.factura_fecha)
-    JOIN LOS_ANTI_PALA.Usuario us
-	ON us.usuario_codigo = f.usuario_codigo
-	JOIN LOS_ANTI_PALA.Domicilio_por_usuario du
-	ON du.usuario_codigo = us.usuario_codigo
-	JOIN LOS_ANTI_PALA.Domicilio d 
-	ON d.domicilio_codigo = du.domicilio_codigo
-	JOIN 
-        LOS_ANTI_PALA.BI_Ubicacion u
-	ON u.ubicacion_provincia = d.domicilio_provincia AND u.ubicacion_localidad = d.domicilio_localidad 
-	JOIN LOS_ANTI_PALA.Detalle_factura df
-	ON df.factura_numero = f.factura_numero 
-	JOIN LOS_ANTI_PALA.Concepto_factura cf
-	ON cf.concepto_factura_codigo = df.concepto_factura_codigo
-	
+		cf.concepto_factura_codigo,
+		f.factura_total,
+		ub.ubicacion_codigo
 
+    FROM LOS_ANTI_PALA.BI_Tiempo t
+    JOIN LOS_ANTI_PALA.Factura f
+		ON t.tiempo_anio = YEAR(f.factura_fecha) AND t.tiempo_mes = MONTH(f.factura_fecha)
+	JOIN LOS_ANTI_PALA.Detalle_factura d
+		ON f.factura_numero = d.factura_numero
+	JOIN LOS_ANTI_PALA.Concepto_factura cf
+		ON d.concepto_factura_codigo = cf.concepto_factura_codigo
+	JOIN LOS_ANTI_PALA.Vendedor v
+		ON f.usuario_codigo = v.usuario_codigo
+	JOIN LOS_ANTI_PALA.BI_Ubicacion ub
+		ON ub.ubicacion_localidad = v.vendedor_domicilio_localidad 
+		AND ub.ubicacion_provincia = v.vendedor_domicilio_provincia
 
     PRINT ('Tabla "BI_Hecho_Facturacion" migrada correctamente');
     
@@ -438,7 +430,6 @@ EXEC migrar_tabla_bi_tiempo;
 EXEC migrar_tabla_bi_hecho_publicacion;
 EXEC migrar_tabla_bi_hecho_envio;
 EXEC migrar_tabla_bi_hecho_facturacion;
-
 	PRINT '--- Todas las tablas del BI fueron migradas correctamente --';
 COMMIT TRANSACTION
 END TRY
@@ -453,7 +444,7 @@ GO
 
 -- 1) Promedio de tiempo de publicaciones.
 
-CREATE VIEW LOS_ANTI_PALA.BI_promedio_tiempo_publicaciones AS
+CREATE OR ALTER VIEW LOS_ANTI_PALA.BI_promedio_tiempo_publicaciones AS
 SELECT
     t.tiempo_anio AS anio, 
     t.tiempo_cuatrimestre AS cuatrimestre,
@@ -475,7 +466,7 @@ GO
 
 -- 2) Promedio de Stock Inicial.
 
-CREATE VIEW LOS_ANTI_PALA.promedio_stock_inicial AS
+CREATE OR ALTER VIEW LOS_ANTI_PALA.promedio_stock_inicial AS
 SELECT
 	p.publicacion_stock_inicial_promedio,
 	m.marca_descripcion,
@@ -487,17 +478,15 @@ JOIN LOS_ANTI_PALA.BI_Marca m ON p.marca_codigo = m.marca_codigo
 GROUP BY p.publicacion_stock_inicial_promedio, m.marca_descripcion, t.tiempo_anio
 GO
 
--- 7) Porcentaje de cumplimiento de envíos en tiempos programados
+-- 7) Porcentaje de cumplimiento de envÃ­os en tiempos programados.
 
-CREATE VIEW LOS_ANTI_PALA.porcentaje_cumplimiento_envios AS
+CREATE OR ALTER VIEW LOS_ANTI_PALA.porcentaje_cumplimiento_envios AS
 SELECT
 	t.tiempo_anio AS anio,
 	t.tiempo_mes AS mes,
 	u.ubicacion_provincia AS provincia,
-	 
-	 COUNT(CASE WHEN e.envio_cumplido = 1 THEN 1 END) * 100.0 / COUNT(*) AS porcentaje_cumplimiento
+	COUNT(CASE WHEN e.envio_cumplido = 1 THEN 1 END) * 100.0 / COUNT(*) AS porcentaje_cumplimiento
 
-	
 FROM LOS_ANTI_PALA.BI_Hecho_Envio e 
 JOIN LOS_ANTI_PALA.BI_Tiempo t ON e.tiempo_codigo = t.tiempo_codigo
 JOIN LOS_ANTI_PALA.BI_Ubicacion u ON e.ubicacion_codigo = u.ubicacion_codigo
@@ -507,38 +496,20 @@ GROUP BY
 	u.ubicacion_provincia
 GO
 
--- 8) Localidades que pagan mayor costo de envío.Las 5 localidades (tomando la localidad del cliente) con mayor costo de envío.
-CREATE VIEW LOS_ANTI_PALA.localidad_paga_mayor_costo_envio AS
-SELECT TOP 5 
-	u.ubicacion_localidad AS Localidad,
+-- 8) Localidades que pagan mayor costo de envÃ­o.Las 5 localidades (tomando la localidad del cliente) con mayor costo de envÃ­o.
+CREATE OR ALTER VIEW LOS_ANTI_PALA.localidad_paga_mayor_costo_envio AS
+SELECT 
+	TOP 5 
+	d.domicilio_localidad AS Localidad,
 	e.envio_costo AS Costo_envio
 	
 	FROM LOS_ANTI_PALA.BI_Hecho_Envio e
 	JOIN LOS_ANTI_PALA.BI_Ubicacion u 
-	ON u.ubicacion_codigo = e.ubicacion_codigo
-
+		ON u.ubicacion_codigo = e.ubicacion_codigo
+	JOIN LOS_ANTI_PALA.Domicilio d
+		ON u.ubicacion_localidad = d.domicilio_localidad AND u.ubicacion_provincia = d.domicilio_provincia
+	GROUP BY d.domicilio_localidad, e.envio_costo
 	ORDER BY e.envio_costo desc
-
 GO
 
 
-
-
-/*
-select*from LOS_ANTI_PALA.Factura f
-    JOIN LOS_ANTI_PALA.Cliente us
-	ON us.usuario_codigo = f.usuario_codigo
-	JOIN LOS_ANTI_PALA.Domicilio_por_usuario du
-	ON du.usuario_codigo = us.usuario_codigo
-	JOIN LOS_ANTI_PALA.Domicilio d 
-	ON d.domicilio_codigo = du.domicilio_codigo
-	JOIN LOS_ANTI_PALA.Detalle_factura df
-	ON df.factura_numero = f.factura_numero 
-	JOIN LOS_ANTI_PALA.Concepto_factura cf
-	ON cf.concepto_factura_codigo = df.concepto_factura_codigo
-
-select*from LOS_ANTI_PALA.Domicilio_por_usuario
-select*from LOS_ANTI_PALA.Usuario u
-	JOIN LOS_ANTI_PALA.Domicilio_por_usuario du
-	ON du.usuario_codigo = u.usuario_codigo
-	*/
