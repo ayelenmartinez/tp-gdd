@@ -37,7 +37,7 @@ IF OBJECT_ID('LOS_ANTI_PALA.Almacen', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.
 IF OBJECT_ID('LOS_ANTI_PALA.Localidad', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Localidad;
 IF OBJECT_ID('LOS_ANTI_PALA.Provincia', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Provincia;
 
-IF OBJECT_ID('LOS_ANTI_PALA.Domicilio_por_usuario', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Domicilio_por_usuario;
+IF OBJECT_ID('LOS_ANTI_PALA.domicilio_por_cliente', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Domicilio_por_cliente;
 IF OBJECT_ID('LOS_ANTI_PALA.Domicilio', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Domicilio;
 
 IF OBJECT_ID('LOS_ANTI_PALA.Tipo_Envio', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Tipo_Envio;
@@ -72,7 +72,14 @@ CREATE TABLE LOS_ANTI_PALA.Cliente (
 CREATE TABLE LOS_ANTI_PALA.Vendedor (
 	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Usuario PRIMARY KEY,
 	vendedor_cuit NVARCHAR(50) CONSTRAINT unique_vendedor_cuit UNIQUE NOT NULL,
-	vendedor_razon_social NVARCHAR(50) NOT NULL
+	vendedor_razon_social NVARCHAR(50) NOT NULL,
+	vendedor_domicilio_calle NVARCHAR(50) NOT NULL,
+	vendedor_domicilio_nro_calle DECIMAL(18,0) NOT NULL DEFAULT 0,
+	vendedor_domicilio_piso DECIMAL(18,0) NOT NULL DEFAULT 0,
+	vendedor_domicilio_depto NVARCHAR(50) NOT NULL,
+	vendedor_domicilio_cp NVARCHAR (50) NOT NULL,
+	vendedor_domicilio_localidad NVARCHAR(50) NOT NULL,
+	vendedor_domicilio_provincia NVARCHAR(50) NOT NULL,
 )
 
 
@@ -94,7 +101,7 @@ CREATE TABLE LOS_ANTI_PALA.Domicilio (
 )
 
 
-CREATE TABLE LOS_ANTI_PALA.Domicilio_por_usuario (
+CREATE TABLE LOS_ANTI_PALA.Domicilio_por_cliente (
 	PRIMARY KEY (usuario_codigo, domicilio_codigo),
     usuario_codigo BIGINT NOT NULL REFERENCES LOS_ANTI_PALA.Usuario,
     domicilio_codigo BIGINT NOT NULL REFERENCES LOS_ANTI_PALA.Domicilio,
@@ -317,49 +324,33 @@ GO
 
 ---------- Migracion Domicilio por usuario-----
 
-IF OBJECT_ID('migrar_tabla_domicilio_por_usuario', 'P') IS NOT NULL
-    DROP PROCEDURE migrar_tabla_domicilio_por_usuario;
+IF OBJECT_ID('migrar_tabla_domicilio_por_cliente', 'P') IS NOT NULL
+    DROP PROCEDURE migrar_tabla_domicilio_por_cliente;
 GO
-CREATE PROCEDURE migrar_tabla_domicilio_por_usuario
+CREATE PROCEDURE migrar_tabla_domicilio_por_cliente
 AS
 BEGIN
-	INSERT INTO LOS_ANTI_PALA.Domicilio_por_usuario (
+	INSERT INTO LOS_ANTI_PALA.Domicilio_por_cliente (
             usuario_codigo, domicilio_codigo
         )
        SELECT DISTINCT 
-    u.usuario_codigo, 
-    d.domicilio_codigo
-FROM [GD2C2024].[gd_esquema].[Maestra] AS m
-INNER JOIN LOS_ANTI_PALA.Usuario AS u
-    ON u.usuario_mail = m.CLIENTE_MAIL
-INNER JOIN LOS_ANTI_PALA.Domicilio AS d
-    ON d.domicilio_calle = m.CLI_USUARIO_DOMICILIO_CALLE
-       AND d.domicilio_nro_calle = m.CLI_USUARIO_DOMICILIO_NRO_CALLE
-       AND d.domicilio_codigo_postal = m.CLI_USUARIO_DOMICILIO_CP
-       AND d.domicilio_localidad = m.CLI_USUARIO_DOMICILIO_LOCALIDAD
-       AND d.domicilio_provincia = m.CLI_USUARIO_DOMICILIO_PROVINCIA
-       AND d.domicilio_piso = m.CLI_USUARIO_DOMICILIO_PISO
-       AND d.domicilio_depto = m.CLI_USUARIO_DOMICILIO_DEPTO;
-
-	INSERT INTO LOS_ANTI_PALA.Domicilio_por_usuario (
-    usuario_codigo, domicilio_codigo
-)
-SELECT DISTINCT 
-    u.usuario_codigo, 
-    d.domicilio_codigo
-FROM [GD2C2024].[gd_esquema].[Maestra] AS m
-INNER JOIN LOS_ANTI_PALA.Usuario AS u
-    ON u.usuario_mail = m.VENDEDOR_MAIL
-INNER JOIN LOS_ANTI_PALA.Domicilio AS d
-    ON d.domicilio_calle = m.VEN_USUARIO_DOMICILIO_CALLE
-       AND d.domicilio_nro_calle = m.CLI_USUARIO_DOMICILIO_NRO_CALLE
-       AND d.domicilio_codigo_postal = m.VEN_USUARIO_DOMICILIO_CP
-       AND d.domicilio_localidad = m.VEN_USUARIO_DOMICILIO_LOCALIDAD
-       AND d.domicilio_provincia = m.VEN_USUARIO_DOMICILIO_PROVINCIA
-       AND d.domicilio_piso = m.VEN_USUARIO_DOMICILIO_PISO
-       AND d.domicilio_depto = m.VEN_USUARIO_DOMICILIO_DEPTO;
-
-	   PRINT('Tabla "Domicilio por usuario" migrada')
+			c.usuario_codigo, 
+			d.domicilio_codigo
+	   FROM [GD2C2024].[gd_esquema].[Maestra] AS m
+	   JOIN LOS_ANTI_PALA.Cliente AS c
+			ON c.cliente_dni = m.CLIENTE_DNI 
+			   AND c.cliente_nombre = m.CLI_USUARIO_NOMBRE
+			   AND c.cliente_apellido = m.CLIENTE_APELLIDO
+			   AND c.cliente_fecha_nac = m.CLIENTE_FECHA_NAC
+	   JOIN LOS_ANTI_PALA.Domicilio AS d
+			ON d.domicilio_calle = m.CLI_USUARIO_DOMICILIO_CALLE
+			   AND d.domicilio_nro_calle = m.CLI_USUARIO_DOMICILIO_NRO_CALLE
+			   AND d.domicilio_codigo_postal = m.CLI_USUARIO_DOMICILIO_CP
+			   AND d.domicilio_localidad = m.CLI_USUARIO_DOMICILIO_LOCALIDAD
+			   AND d.domicilio_provincia = m.CLI_USUARIO_DOMICILIO_PROVINCIA
+			   AND d.domicilio_piso = m.CLI_USUARIO_DOMICILIO_PISO
+			   AND d.domicilio_depto = m.CLI_USUARIO_DOMICILIO_DEPTO;
+	   PRINT('Tabla "Domicilio por usuario" migrada') 
 END
 GO
 
@@ -698,11 +689,28 @@ GO
 CREATE PROCEDURE migrar_tabla_vendedor
 AS
 	BEGIN
-		INSERT INTO LOS_ANTI_PALA.Vendedor(usuario_codigo, vendedor_cuit, vendedor_razon_social)
+		INSERT INTO LOS_ANTI_PALA.Vendedor(
+			usuario_codigo, 
+			vendedor_cuit, 
+			vendedor_razon_social,
+			vendedor_domicilio_calle,
+			vendedor_domicilio_nro_calle,
+			vendedor_domicilio_piso,
+			vendedor_domicilio_depto,
+			vendedor_domicilio_cp,
+			vendedor_domicilio_localidad,
+			vendedor_domicilio_provincia)
 		SELECT DISTINCT
 			usuario_codigo,
 			[VENDEDOR_CUIT],
-			[VENDEDOR_RAZON_SOCIAL]
+			[VENDEDOR_RAZON_SOCIAL],
+			[VEN_USUARIO_DOMICILIO_CALLE],
+			[VEN_USUARIO_DOMICILIO_NRO_CALLE],
+			[VEN_USUARIO_DOMICILIO_PISO],
+			[VEN_USUARIO_DOMICILIO_DEPTO],
+			[VEN_USUARIO_DOMICILIO_CP],
+			[VEN_USUARIO_DOMICILIO_LOCALIDAD],
+			[VEN_USUARIO_DOMICILIO_PROVINCIA]
 		FROM [GD2C2024].[gd_esquema].[Maestra] JOIN LOS_ANTI_PALA.Usuario 
 						ON VENDEDOR_MAIL = usuario_mail AND
 						VEN_USUARIO_NOMBRE = usuario_nombre AND
@@ -838,7 +846,7 @@ GO
 -------- Fin migracion Producto ----------
 
 ---------- Migracion Factura ----------
-/*
+
 IF OBJECT_ID('migrar_tabla_factura', 'P') IS NOT NULL
     DROP PROCEDURE migrar_tabla_factura;
 GO
@@ -850,12 +858,16 @@ AS
 			m.FACTURA_NUMERO,
 			m.FACTURA_FECHA,
 			m.FACTURA_TOTAL,
-			c.usuario_codigo
-		FROM [GD2C2024].[gd_esquema].[Maestra] m JOIN LOS_ANTI_PALA.Cliente c
-			ON m.
+			(
+				SELECT 
+					top 1 p.usuario_codigo
+				FROM LOS_ANTI_PALA.Publicacion p
+				WHERE p.publicacion_codigo = m.PUBLICACION_CODIGO
+			)
+		FROM [GD2C2024].[gd_esquema].[Maestra] m
 		WHERE m.FACTURA_NUMERO IS NOT NULL
         PRINT('Tabla "Factura" migrada')
-    END
+    END 
 GO
 -------- Fin migracion Factura ----------
 
@@ -876,7 +888,7 @@ AS
     END
 GO
 -------- Fin migracion Concepto Factura ----------
-*/
+
 
 ---------- Migracion Detalle Factura ----------
 IF OBJECT_ID('migrar_tabla_detalle_factura', 'P') IS NOT NULL
@@ -927,7 +939,7 @@ EXEC migrar_tabla_vendedor;
 EXEC migrar_tabla_almacen;
 EXEC migrar_tabla_publicacion;
 EXEC migrar_tabla_cliente;
-EXEC migrar_tabla_domicilio_por_usuario;
+EXEC migrar_tabla_domicilio_por_cliente;
 EXEC migrar_tabla_venta;
 EXEC migrar_tabla_detalle_venta;
 EXEC migrar_tabla_envio;
