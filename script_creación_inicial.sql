@@ -24,9 +24,9 @@ IF OBJECT_ID('LOS_ANTI_PALA.Venta', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Ve
 
 IF OBJECT_ID('LOS_ANTI_PALA.Detalle_de_pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Detalle_de_pago;
 IF OBJECT_ID('LOS_ANTI_PALA.Medio_de_pago', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Medio_de_pago;
+IF OBJECT_ID('LOS_ANTI_PALA.Producto', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Producto;
 
 IF OBJECT_ID('LOS_ANTI_PALA.Publicacion', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Publicacion;
-IF OBJECT_ID('LOS_ANTI_PALA.Producto', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Producto;
 IF OBJECT_ID('LOS_ANTI_PALA.Subrubro', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Subrubro;
 IF OBJECT_ID('LOS_ANTI_PALA.Rubro', 'U') IS NOT NULL DROP TABLE LOS_ANTI_PALA.Rubro;
 
@@ -165,6 +165,7 @@ CREATE TABLE LOS_ANTI_PALA.Publicacion (
 	publicacion_fecha_final DATE,
 	usuario_codigo BIGINT REFERENCES LOS_ANTI_PALA.Vendedor NOT NULL,
 	almacen_codigo DECIMAL (18,0) REFERENCES LOS_ANTI_PALA.Almacen NOT NULL,
+	rubro_codigo DECIMAL(18,0) REFERENCES LOS_ANTI_PALA.Rubro NOT NULL,
 )
 
 
@@ -370,7 +371,7 @@ CREATE PROCEDURE migrar_tabla_pago
 AS
 BEGIN
 	INSERT INTO LOS_ANTI_PALA.Pago(pago_importe,pago_fecha, medio_pago_codigo, detalle_pago_codigo, venta_codigo)
-	SELECT 
+	SELECT DISTINCT
 		m.[PAGO_IMPORTE],
 		m.[PAGO_FECHA],
 		mp.medio_pago_codigo,
@@ -466,7 +467,7 @@ AS
 BEGIN
 	INSERT INTO LOS_ANTI_PALA.Publicacion(publicacion_codigo, publicacion_descripcion,
 	publicacion_stock, publicacion_precio,publicacion_costo,publicacion_porcentaje_venta,
-	publicacion_fecha_inicial, publicacion_fecha_final,almacen_codigo,usuario_codigo)
+	publicacion_fecha_inicial, publicacion_fecha_final,almacen_codigo,usuario_codigo, rubro_codigo)
 	SELECT DISTINCT 
 		m.[PUBLICACION_CODIGO],
 		m.[PUBLICACION_DESCRIPCION],
@@ -477,10 +478,13 @@ BEGIN
 		m.[PUBLICACION_FECHA],
 		m.[PUBLICACION_FECHA_V],
 		m.[ALMACEN_CODIGO],
-		v.usuario_codigo
+		v.usuario_codigo,
+		r.rubro_codigo
 	FROM [GD2C2024].[gd_esquema].[Maestra] m
 		JOIN LOS_ANTI_PALA.Vendedor V 
 		ON v.vendedor_cuit =  m.VENDEDOR_CUIT AND v.vendedor_razon_social = m.VENDEDOR_RAZON_SOCIAl	
+		JOIN LOS_ANTI_PALA.Rubro r
+		ON m.PRODUCTO_RUBRO_DESCRIPCION = r.rubro_descripcion
 	PRINT ('Tabla "Publicacion" migrada')
 END
 GO
@@ -896,8 +900,6 @@ AS
 GO
 -------- Fin Detalle Factura ----------
 
-
-
 ------------------- Fin creacion de procedures -------------------
 
 ------------------- Ejecucion de procedures -------------------
@@ -935,5 +937,4 @@ BEGIN CATCH
 ROLLBACK TRANSACTION;
 		THROW 50001, 'No se migraron correctamente las tablas', 1;
 END CATCH
-
 ------------------- Fin ejecucion de procedures -------------------
